@@ -2,6 +2,7 @@ import bpy
 import bgl
 from .render.render import Render
 import numpy as np
+import time
 
 
 class CustomRenderEngine(bpy.types.RenderEngine):
@@ -25,6 +26,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         pass
 
     def update(self, data=None, depsgraph=None):
+        t = time.time()
         self.renderer = Render()
         scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0
@@ -32,15 +34,19 @@ class CustomRenderEngine(bpy.types.RenderEngine):
                                      int(scene.render.resolution_y * scale))
 
         self.renderer.sync_depsgraph(depsgraph)
+        print("Total export", time.time() - t)
 
     # This is the method called by Blender for both final renders (F12) and
     # small preview for materials, world and lights.
     def render(self, depsgraph):
         # render the number of samples
-        num_samples = 1
+        num_samples = 64
+        t = time.time()
         for _ in range(num_samples):
             self.renderer.render_pass()
+        self.renderer.finish(num_samples)
         self.renderer.save()
+        print("Total render", time.time() - t)
 
         pixel_buffer = self.renderer.get_buffer()
 

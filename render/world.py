@@ -5,10 +5,13 @@ import taichi as ti
 from .vector import *
 import numpy as np
 from .ray import Ray
+import time
 
 
 class World:
     def __init__(self, depsgraph):
+        t_start = time.time()
+
         # create a list of object masters
         num_meshes = len([o for o in depsgraph.objects if o.type == 'MESH'])
         num_instances = len([o for o in depsgraph.object_instances if o.object.type == 'MESH'])
@@ -48,6 +51,8 @@ class World:
 
                 material_indices = mesh_mat_indices if material_indices == [] else np.concatenate([material_indices, mesh_mat_indices])
                 material_index_count += material_indices.shape[0]
+        print("Mesh export time", time.time() - t_start)
+        t_new = time.time()
 
         self.triangles = ti.field(dtype=ti.u32, shape=(tri_count, 3))
         self.triangles.from_numpy(tris)
@@ -60,7 +65,9 @@ class World:
 
         self.materials = Vector4.field(shape=len(materials))
         self.materials.from_numpy(np.array(materials, dtype=np.float32))
+        print("Saving numpy arrays", time.time() - t_new)
 
+        t_instance = time.time()
         # create a list of object instances
         self.object_instances = object_instance.field(shape=num_instances)
         i = 0
@@ -68,6 +75,7 @@ class World:
             if instance.object.type == 'MESH' and instance.object in mesh_id_dict:
                 self.object_instances[i] = export_instance(instance, mesh_id_dict[instance.object], Vector4(instance.object.color))
                 i += 1
+        print("Saving instances", time.time()-t_instance)
 
     @ti.func
     def hit(self, r, t_min, t_max):

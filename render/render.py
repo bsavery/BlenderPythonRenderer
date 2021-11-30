@@ -28,6 +28,11 @@ class Render:
             ray = self.camera.get_ray(s, t)
             self.pixel_buffer[i, j] += self.trace_camera_ray(ray, Vector4(0.0))
 
+    @ti.kernel
+    def finish(self, n:ti.i32):
+        for i, j in self.pixel_buffer:
+            self.pixel_buffer[i, j] /= n
+
     def set_resolution(self, width, height):
         self.image_width, self.image_height = width, height
         self.pixel_buffer = ti.Vector.field(n=4, dtype=ti.f32, shape=(width, height))
