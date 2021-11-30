@@ -8,13 +8,6 @@ from . import ray
 mesh = ti.types.struct(start_index=ti.u32, end_index=ti.u32)
 
 
-# Triangle Struct
-# holds three vertex indices
-triangle = ti.types.struct(p0=ti.u32, p1=ti.u32, p2=ti.u32)
-
-vertex = Point
-
-
 def get_mesh_tris(blender_mesh, offset):
     num_tris = len(blender_mesh.loop_triangles)
     data = np.zeros(num_tris * 3, dtype=np.uint32)
@@ -29,15 +22,24 @@ def get_mesh_verts(blender_mesh):
     return data.reshape((num_verts, 3))
 
 
-def export_mesh(blender_obj, triangle_offset, vertex_offset):
+def get_material_indices(blender_mesh, material_indices):
+    num_indices = len(blender_mesh.loop_triangles)
+    data = np.zeros(num_indices, dtype=np.uint32)
+    blender_mesh.loop_triangles.foreach_get('material_index', data)
+    # convert internal indices to lookup vals
+    return np.array(material_indices, dtype=np.uint32)[data]
+
+
+def export_mesh(blender_obj, triangle_offset, vertex_offset, material_indices):
     blender_mesh = blender_obj.data
     blender_mesh.calc_loop_triangles()
 
     vertices = get_mesh_verts(blender_mesh)
     tris = get_mesh_tris(blender_mesh, vertex_offset)
+    mat_indices = get_material_indices(blender_mesh, material_indices)
     mesh_struct = mesh(start_index=triangle_offset, end_index=(triangle_offset + len(tris)))
 
-    return mesh_struct, tris, vertices
+    return mesh_struct, tris, vertices, mat_indices
 
 
 @ti.func

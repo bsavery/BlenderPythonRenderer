@@ -1,5 +1,6 @@
-from .mesh import mesh, triangle, vertex, export_mesh, hit_triangle
+from .mesh import mesh, export_mesh, hit_triangle
 from .instance import object_instance, export_instance, hit_instance
+from .material import export_material
 import taichi as ti
 from .vector import *
 import numpy as np
@@ -18,11 +19,24 @@ class World:
         i = 0
         tri_count = 0
         vert_count = 0
+        material_index_count = 0
         tris = []
         verts = []
+        material_dict = {}
+        materials = []
+        material_indices = []
+
         for obj in depsgraph.objects:
             if obj.type == 'MESH':
-                self.meshes[i], mesh_tris, mesh_verts = export_mesh(obj, tri_count, vert_count)
+                obj_mat_indices = []
+                for slot in obj.material_slots:
+                    material = slot.material
+                    if material not in material_dict:
+                        materials.append(export_material(material))
+                        material_dict[material] = len(material_dict)
+                    obj_mat_indices.append(material_dict[material])
+
+                self.meshes[i], mesh_tris, mesh_verts, mesh_mat_indices = export_mesh(obj, tri_count, vert_count, obj_mat_indices)
                 mesh_id_dict[obj] = i
                 i += 1
 
@@ -32,11 +46,20 @@ class World:
                 verts = mesh_verts if verts == [] else np.concatenate([verts, mesh_verts])
                 vert_count += mesh_verts.shape[0]
 
+                material_indices = mesh_mat_indices if material_indices == [] else np.concatenate([material_indices, mesh_mat_indices])
+                material_index_count += material_indices.shape[0]
+
         self.triangles = ti.field(dtype=ti.u32, shape=(tri_count, 3))
         self.triangles.from_numpy(tris)
 
-        self.vertices = vertex.field(shape=vert_count)
+        self.vertices = Point.field(shape=vert_count)
         self.vertices.from_numpy(verts)
+
+        self.material_indices = ti.field(dtype=ti.u32, shape=tri_count)
+        self.material_indices.from_numpy(material_indices)
+
+        self.materials = Vector4.field(shape=len(materials))
+        self.materials.from_numpy(np.array(materials, dtype=np.float32))
 
         # create a list of object instances
         self.object_instances = object_instance.field(shape=num_instances)
@@ -73,7 +96,7 @@ class World:
 
                     if hit_tri:
                         hit_anything = True
-                        color = instance.color
+                        color = self.materials[self.material_indices[start_i]]
                         t_max = t
                     start_i += 1
 
