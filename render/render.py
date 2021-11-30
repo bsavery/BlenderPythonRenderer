@@ -35,8 +35,9 @@ class Render:
     @ti.func
     def trace_camera_ray(self, r, background):
         color = background
-        if self.world.hit(r, 0.0, 99999999.0):
-            color = Vector4(1.0, 0.0, 0.0, 1.0)
+        hit, temp_color = self.world.hit(r, 0.0, 99999999.0)
+        if hit:
+            color = temp_color
         return color
 
     def save(self):

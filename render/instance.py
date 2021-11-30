@@ -3,10 +3,10 @@ from .vector import *
 import numpy as np
 
 # Object Instance Struct
-object_instance = ti.types.struct(box_min=Vector, box_max=Vector, master_id=ti.i32)
+object_instance = ti.types.struct(box_min=Vector, box_max=Vector, matrix=Matrix4, mesh_id=ti.u32, color=Vector4)
 
 
-def export_instance(instance, master_id):
+def export_instance(instance, mesh_id, color):
     bound_box = np.array(instance.object.bound_box)
     # add column to multiply nice
     bound_box = np.hstack((bound_box, np.ones((8, 1))))
@@ -15,9 +15,11 @@ def export_instance(instance, master_id):
     # remove column
     bound_box = np.delete(bound_box, -1, 1)
 
+    matrix = [list(row) for row in instance.matrix_world.inverted()]
+    
     return object_instance(box_min=list(bound_box.min(axis=0)),
                            box_max=list(bound_box.max(axis=0)),
-                           master_id=master_id)
+                           matrix=matrix, mesh_id=mesh_id, color=color)
 
 
 @ti.func
