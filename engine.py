@@ -40,33 +40,33 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # small preview for materials, world and lights.
     def render(self, depsgraph):
         # render the number of samples
-        num_samples = 16
-        t = time.time()
-        for _ in range(num_samples):
-            self.renderer.render_pass()
-        self.renderer.finish(num_samples)
-        self.renderer.save()
-        print("Total render", time.time() - t)
-
-        pixel_buffer = self.renderer.get_buffer()
-
         scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0
         self.size_x = int(scene.render.resolution_x * scale)
         self.size_y = int(scene.render.resolution_y * scale)
+        result = self.begin_result(0, 0, self.size_x, self.size_y)
 
-        # Fill the render result with a flat color. The framebuffer is
-        # defined as a list of pixels, each pixel itself being a list of
-        # R,G,B,A values.
+        layer = result.layers[0].passes["Combined"]
 
-        if self.is_preview:
-            color = [0.1, 0.2, 0.1, 1.0]
-
-        # Here we write the pixel values to the RenderResult
+        num_samples = 16
+        t = time.time()
+        for _ in range(num_samples):
+            self.renderer.render_pass()
+            result = self.begin_result(0, 0, self.size_x, self.size_y)
+            layer = result.layers[0].passes["Combined"]
+            layer.rect = self.renderer.get_buffer()
+            self.end_result(result)
+            print("render pass", _, time.time() - t)
+        self.renderer.finish(num_samples)
+        
         result = self.begin_result(0, 0, self.size_x, self.size_y)
         layer = result.layers[0].passes["Combined"]
-        layer.rect = pixel_buffer
+        layer.rect = self.renderer.get_buffer()
         self.end_result(result)
+        
+        print("Total render", time.time() - t)
+        self.renderer.save()
+
 
     # For viewport renders, this method gets called once at the start and
     # whenever the scene or 3D viewport changes. This method is where data

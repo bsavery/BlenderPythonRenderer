@@ -6,7 +6,6 @@ from .vector import *
 import numpy as np
 from .ray import Ray
 import time
-from .bvh import hit_aabb, build_bvh
 
 
 class Scene:
@@ -36,22 +35,16 @@ class Scene:
         self.instances.commit()
 
     @ti.func
-    def hit(self, r, t_min, t_max):
-        color = Vector4(0.0)
-
+    def hit(self, r, t_min, t_max, color):
         hit, material_id = self.instances.hit(self.meshes, r, t_min, t_max)
         if hit:
             color = self.materials.ti_get(material_id)
 
-        return hit, color
+        return color
 
     @ti.func
     def trace_camera_ray(self, r, background):
-        color = background
-        hit, temp_color = self.hit(r, 0.0, 99999999.0)
-        if hit:
-            color = temp_color
-        return color
+        return self.hit(r, 0.0, 99999999.0, background)
 
 
 '''    
