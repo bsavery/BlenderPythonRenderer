@@ -70,3 +70,82 @@ def hit_triangle(v0, v1, v2, r, t_min, t_max):
                 hit = True
 
     return hit, t
+
+
+@ti.data_oriented
+class MeshCache:
+    ti_data = None
+    ti_tris = None
+    ti_verts = None
+    ti_mat_indices = None
+
+    data = {}  # a dict of blender object: mesh_struct
+
+    tri_count = 0
+    vert_count = 0
+
+    def add(self, obj, materials):
+        print('adding mesh', obj)
+        material_indices = [materials.get_index(slot.material) for slot in obj.material_slots]
+        mesh_struct, mesh_tris, mesh_verts, mesh_mat_indices = export_mesh(obj, self.tri_count,
+                                                                           self.vert_count,
+                                                                           material_indices)
+        if len(self.data) == 0:
+            self.tris = mesh_tris
+            self.verts = mesh_verts
+            self.mat_indices = mesh_mat_indices
+        else:
+            self.tris = np.concatenate([self.tris, mesh_tris])
+            self.verts = np.concatenate([self.verts, mesh_verts])
+            self.mat_indices = np.concatenate([self.mat_indices, mesh_mat_indices])
+
+        self.tri_count += mesh_tris.shape[0]
+        self.vert_count += mesh_verts.shape[0]
+        self.data[obj] = mesh_struct
+
+    def commit(self):
+        # commit data to taichi fields and clear
+        self.ti_tris = ti.field(dtype=ti.u32, shape=(self.tri_count, 3))
+        self.ti_tris.from_numpy(self.tris)
+        self.tris = None
+
+        self.ti_verts = Point.field(shape=self.vert_count)
+        self.ti_verts.from_numpy(self.verts)
+        self.vert_count = 0
+        self.verts = None
+
+        self.ti_mat_indices = ti.field(dtype=ti.u32, shape=self.tri_count)
+        self.ti_mat_indices.from_numpy(self.mat_indices)
+        self.tri_count = 0
+        self.mat_indices = None
+
+        self.ti_data = mesh.field(shape=len(self.data))
+        i = 0
+        for m in self.data.values():
+            self.ti_data[i] = m
+            i += 1
+
+    @ti.func
+    def hit(self, m, r, t_min, t_max):
+        # hit all tris in a mesh and return the mesh material that is hit
+
+        hit_anything = False
+        material_id = 0
+
+        i = m.start_index
+        while i < m.end_index:
+            v0_i, v1_i, v2_i = self.ti_tris[i, 0], self.ti_tris[i, 1], self.ti_tris[i, 2]
+            hit_tri, t = hit_triangle(self.ti_verts[v0_i],
+                                      self.ti_verts[v1_i],
+                                      self.ti_verts[v2_i], r, t_min, t_max)
+
+            if hit_tri:
+                hit_anything = True
+                material_id = self.ti_mat_indices[i]
+                t_max = t
+            i += 1
+
+        return hit_anything, t_max, material_id
+
+    def get_mesh(self, obj):
+        return self.data[obj]
