@@ -3,6 +3,7 @@ from .vector import *
 import numpy as np
 from .ray import *
 from .mesh import mesh
+from .bvh import *
 
 # Object Instance Struct
 instance = ti.types.struct(box_min=Vector, box_max=Vector, matrix=Matrix4, mesh_ptr=mesh)
@@ -75,6 +76,8 @@ class InstanceCache:
         for i, inst in enumerate(self.data):
             self.ti_data[i] = inst
 
+        self.ti_bvh = build_bvh(self.data)
+
     @ti.func
     def ti_get(self, i):
         return self.ti_data[i]
@@ -86,19 +89,30 @@ class InstanceCache:
         hit_anything = False
         material_id = 0
 
-        for i in range(self.ti_data.shape[0]):
-            # first check the instance bbox for hits
-            inst = self.ti_get(i)
-            hit_box = hit_instance(inst, r, t_min, t_max)
-            if hit_box:
-                # convert ray and t to object space
+        bvh_id = 0
+
+        # walk the bvh tree
+        while bvh_id != -1:
+            bvh_node = self.ti_bvh[bvh_id]
+
+            if bvh_node.obj_id != -1:
+                # this is a leaf node, check the instance
+                inst = self.ti_data[bvh_node.obj_id]
+                # convert ray space to object
                 r_object = convert_to_object_space(inst, r)
-                # now get the mesh hit
+
                 hit_mesh, t, mat_id = mesh_data.hit(inst.mesh_ptr, r_object, t_min, t_max)
                 # if hit set to closest
                 if hit_mesh:
                     hit_anything = True
                     t_max = t
                     material_id = mat_id
+                bvh_id = bvh_node.next_id
+            else:
+                if hit_aabb(bvh_node, r, t_min, t_max):
+                    # visit left child next (left child will visit it's next = right)
+                    bvh_id = bvh_node.left_id
+                else:
+                    bvh_id = bvh_node.next_id
 
         return hit_anything, material_id
