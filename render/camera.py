@@ -13,7 +13,7 @@ class Camera:
         focus_dist = 10.0
         aperture = 0.0
 
-        theta = blender_cam.data.angle
+        theta = blender_cam.data.angle / aspect_ratio
         h = math.tan(theta/2.0)
 
         cam_mat = blender_cam.matrix_world
