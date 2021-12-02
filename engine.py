@@ -40,7 +40,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # small preview for materials, world and lights.
     def render(self, depsgraph):
         # render the number of samples
-        num_samples = 64
+        num_samples = 16
         t = time.time()
         for _ in range(num_samples):
             self.renderer.render_pass()

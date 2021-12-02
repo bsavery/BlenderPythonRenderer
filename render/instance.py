@@ -63,19 +63,17 @@ def convert_to_object_space(inst, r):
 @ti.data_oriented
 class InstanceCache:
     ti_data = None
-    data = {}  # a dict of instances id: instance_struct
+    data = []  # a dict of instances id: instance_struct  #TODO find a way to hash instances
 
     def add(self, inst, mesh_ptr):
-        self.data[inst.object] = export_instance(inst, mesh_ptr)
+        self.data.append(export_instance(inst, mesh_ptr))
 
     def commit(self):
         ''' save the instance data to taichi data'''
         self.ti_data = instance.field(shape=len(self.data))
 
-        i = 0
-        for inst in self.data.values():
+        for i, inst in enumerate(self.data):
             self.ti_data[i] = inst
-            i += 1
 
     @ti.func
     def ti_get(self, i):
