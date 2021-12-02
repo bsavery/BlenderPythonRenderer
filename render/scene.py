@@ -25,8 +25,9 @@ class Scene:
                 self.meshes.add(obj, self.materials)
 
         for instance in depsgraph.object_instances:
-            if instance.object.type == 'MESH' and instance.object in self.meshes.data:
-                self.instances.add(instance, self.meshes.get_mesh(instance.object))
+            if instance.object.type == 'MESH':
+                self.instances.add(instance, self.meshes.get_mesh(instance.object, self.materials))
+
 
     def commit(self):
         ''' flatten and save the data to taichi fields '''

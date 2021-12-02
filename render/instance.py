@@ -66,8 +66,7 @@ class InstanceCache:
     data = {}  # a dict of instances id: instance_struct
 
     def add(self, inst, mesh_ptr):
-        print("adding instance", inst)
-        self.data[inst.persistent_id] = export_instance(inst, mesh_ptr)
+        self.data[inst.object] = export_instance(inst, mesh_ptr)
 
     def commit(self):
         ''' save the instance data to taichi data'''

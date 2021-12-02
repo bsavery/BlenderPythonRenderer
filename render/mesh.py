@@ -85,7 +85,9 @@ class MeshCache:
     vert_count = 0
 
     def add(self, obj, materials):
-        print('adding mesh', obj)
+        if obj in self.data:
+            return
+
         material_indices = [materials.get_index(slot.material) for slot in obj.material_slots]
         mesh_struct, mesh_tris, mesh_verts, mesh_mat_indices = export_mesh(obj, self.tri_count,
                                                                            self.vert_count,
@@ -147,5 +149,7 @@ class MeshCache:
 
         return hit_anything, t_max, material_id
 
-    def get_mesh(self, obj):
+    def get_mesh(self, obj, materials):
+        if obj not in self.data:
+            self.add(obj, materials)
         return self.data[obj]
