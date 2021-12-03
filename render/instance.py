@@ -3,24 +3,23 @@ from .vector import *
 import numpy as np
 from .ray import *
 from .mesh import mesh
+from mathutils import Vector as b_vec
 
 # Object Instance Struct
 instance = ti.types.struct(box_min=Vector, box_max=Vector, matrix=Matrix4, mesh_ptr=mesh)
 
 
 def export_instance(inst, mesh_ptr):
+    
     bound_box = np.array(inst.object.bound_box)
-    # add column to multiply nice
-    bound_box = np.hstack((bound_box, np.ones((8, 1))))
-    # multiply by matrix
-    bound_box = bound_box @ np.array(inst.matrix_world).T
-    # remove column
-    bound_box = np.delete(bound_box, -1, 1)
+    mat = inst.matrix_world if inst.is_instance else inst.object.matrix_world
+    bb_vertices = [b_vec(v) for v in bound_box]
+    world_bb_vertices = np.array([mat @ v for v in bb_vertices])
 
-    matrix = [list(row) for row in inst.matrix_world.inverted()]
+    matrix = [list(row) for row in mat.inverted()]
 
-    return instance(box_min=list(bound_box.min(axis=0)),
-                    box_max=list(bound_box.max(axis=0)),
+    return instance(box_min=list(world_bb_vertices.min(axis=0)),
+                    box_max=list(world_bb_vertices.max(axis=0)),
                     matrix=matrix, mesh_ptr=mesh_ptr)
 
 
@@ -59,6 +58,11 @@ def convert_to_object_space(inst, r):
 
     return Ray(orig=orig, dir=dir.normalized(), time=r.time)
 
+@ti.func
+def convert_t(r_orig, r_dest, t):
+    P = at(r_orig, t)
+    return (P - r_dest.orig)[0] / r_dest.dir[0]
+
 
 @ti.data_oriented
 class InstanceCache:
@@ -74,6 +78,7 @@ class InstanceCache:
 
         for i, inst in enumerate(self.data):
             self.ti_data[i] = inst
+        self.num_instances = len(self.data)
 
     @ti.func
     def ti_get(self, i):
@@ -86,7 +91,8 @@ class InstanceCache:
         hit_anything = False
         material_id = 0
 
-        for i in range(self.ti_data.shape[0]):
+        i = 0
+        while i < self.num_instances:
             # first check the instance bbox for hits
             inst = self.ti_get(i)
             hit_box = hit_instance(inst, r, t_min, t_max)
@@ -100,5 +106,6 @@ class InstanceCache:
                     hit_anything = True
                     t_max = t
                     material_id = mat_id
+            i += 1
 
         return hit_anything, material_id
