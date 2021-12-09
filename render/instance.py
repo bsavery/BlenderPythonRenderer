@@ -66,8 +66,9 @@ def convert_t(r_orig, r_dest, t):
 
 @ti.data_oriented
 class InstanceCache:
-    ti_data = None
-    data = []  # a dict of instances id: instance_struct  #TODO find a way to hash instances
+    def __init__(self):
+        self.ti_data = None
+        self.data = []  # a dict of instances id: instance_struct  #TODO find a way to hash instances
 
     def add(self, inst, mesh_ptr):
         self.data.append(export_instance(inst, mesh_ptr))

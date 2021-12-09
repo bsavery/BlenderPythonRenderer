@@ -7,12 +7,11 @@ from .integrator import Integrator
 
 @ti.data_oriented
 class Render:
-    camera: Camera
-    scene: Scene
-
     def __init__(self):
         ti.init(arch=ti.gpu)
-    
+        self.camera: Camera = None
+        self.scene: Scene = None
+
     def sync_depsgraph(self, depsgraph):
         self.scene = Scene(depsgraph)
         self.camera = Camera(depsgraph.scene.camera, self.image_width, self.image_height)

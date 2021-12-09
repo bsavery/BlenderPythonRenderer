@@ -9,14 +9,13 @@ import time
 
 
 class Scene:
-    # Scene data contains a mapping of blender objects to taichi data
-    # this is used for syncing data
-    meshes = MeshCache()
-    instances = InstanceCache()
-    materials = MaterialCache()
-
     def __init__(self, depsgraph):
         t_start = time.time()
+        # Scene data contains a mapping of blender objects to taichi data
+        # this is used for syncing data
+        self.meshes = MeshCache()
+        self.instances = InstanceCache()
+        self.materials = MaterialCache()
 
         # sync meshes and any materials
         for obj in depsgraph.objects:
@@ -26,7 +25,6 @@ class Scene:
         for instance in depsgraph.object_instances:
             if instance.object.type == 'MESH':
                 self.instances.add(instance, self.meshes.get_mesh(instance.object, self.materials))
-
 
     def commit(self):
         ''' flatten and save the data to taichi fields '''

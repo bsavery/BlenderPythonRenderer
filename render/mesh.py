@@ -74,15 +74,16 @@ def hit_triangle(v0, v1, v2, r, t_min, t_max):
 
 @ti.data_oriented
 class MeshCache:
-    ti_data = None
-    ti_tris = None
-    ti_verts = None
-    ti_mat_indices = None
+    def __init__(self):
+        self.ti_data = None
+        self.ti_tris = None
+        self.ti_verts = None
+        self.ti_mat_indices = None
 
-    data = {}  # a dict of blender object: mesh_struct
+        self.data = {}  # a dict of blender object: mesh_struct
 
-    tri_count = 0
-    vert_count = 0
+        self.tri_count = 0
+        self.vert_count = 0
 
     def add(self, obj, materials):
         if obj in self.data:

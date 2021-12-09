@@ -5,8 +5,9 @@ import numpy as np
 
 @ti.data_oriented
 class MaterialCache:
-    ti_data = None
-    data = []  # a list of materials index = id
+    def __init__(self):
+        self.ti_data = None
+        self.data = []  # a list of materials index = id
 
     def add(self, blender_material):
         if blender_material not in self.data:
