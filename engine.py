@@ -50,20 +50,25 @@ class CustomRenderEngine(bpy.types.RenderEngine):
 
         num_samples = 16
         t = time.time()
-        for _ in range(num_samples):
+        n = 0
+        while n < num_samples:
+            if self.test_break():
+                break
             self.renderer.render_pass()
+            n += 1
             result = self.begin_result(0, 0, self.size_x, self.size_y)
             layer = result.layers[0].passes["Combined"]
-            layer.rect = self.renderer.get_buffer()
+            layer.rect = self.renderer.get_buffer() / n
             self.end_result(result)
-            print("render pass", _, time.time() - t)
-        self.renderer.finish(num_samples)
-        
+            self.update_progress(n / num_samples)
+
+        self.renderer.finish(n)
+
         result = self.begin_result(0, 0, self.size_x, self.size_y)
         layer = result.layers[0].passes["Combined"]
         layer.rect = self.renderer.get_buffer()
         self.end_result(result)
-        
+
         print("Total render", time.time() - t)
         self.renderer.save()
 
