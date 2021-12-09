@@ -70,7 +70,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         self.end_result(result)
 
         print("Total render", time.time() - t)
-        self.renderer.save()
+        #self.renderer.save()
 
 
     # For viewport renders, this method gets called once at the start and
