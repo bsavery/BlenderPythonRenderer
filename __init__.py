@@ -11,6 +11,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 from . import engine
+from . import properties
+from . import ui
 
 bl_info = {
     "name": "BlenderPythonRender",
@@ -26,7 +28,11 @@ bl_info = {
 
 def register():
     engine.register()
+    properties.register()
+    ui.register()
 
 
 def unregister():
     engine.unregister()
+    ui.unregister()
+    properties.unregister()

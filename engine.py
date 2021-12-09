@@ -8,8 +8,8 @@ import time
 class CustomRenderEngine(bpy.types.RenderEngine):
     # These three members are used by blender to set up the
     # RenderEngine; define its internal name, visible name and capabilities.
-    bl_idname = "CUSTOM"
-    bl_label = "Custom"
+    bl_idname = "BPR"
+    bl_label = "BPR"
     bl_use_preview = True
 
     # Init is called whenever a new render engine instance is created. Multiple
@@ -48,7 +48,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
 
         layer = result.layers[0].passes["Combined"]
 
-        num_samples = 16
+        num_samples = scene.bpr.samples
         t = time.time()
         n = 0
         while n < num_samples:
@@ -230,7 +230,7 @@ def register():
     bpy.utils.register_class(CustomRenderEngine)
 
     for panel in get_panels():
-        panel.COMPAT_ENGINES.add('PYTHON')
+        panel.COMPAT_ENGINES.add('BPR')
 
 
 def unregister():
@@ -238,4 +238,4 @@ def unregister():
 
     for panel in get_panels():
         if 'PYTHON' in panel.COMPAT_ENGINES:
-            panel.COMPAT_ENGINES.remove('PYTHON')
+            panel.COMPAT_ENGINES.remove('BPR')
