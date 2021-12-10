@@ -2,6 +2,7 @@ import taichi as ti
 from .vector import *
 import numpy as np
 from . import ray
+from .hit_record import empty_hit_record, set_face_normal
 
 # Mesh Struct
 # holds start, end index to list of triangles
@@ -13,6 +14,13 @@ def get_mesh_tris(blender_mesh, offset):
     data = np.zeros(num_tris * 3, dtype=np.uint32)
     blender_mesh.loop_triangles.foreach_get('vertices', data)
     return data.reshape((num_tris, 3)) + offset
+
+
+def get_mesh_normals(blender_mesh, offset):
+    num_normals = len(blender_mesh.loop_triangles)
+    data = np.zeros(num_normals * 3, dtype=np.uint32)
+    blender_mesh.loop_triangles.foreach_get('normal', data)
+    return data.reshape((num_normals, 3)) + offset
 
 
 def get_mesh_verts(blender_mesh):
@@ -37,39 +45,36 @@ def export_mesh(blender_obj, triangle_offset, vertex_offset, material_indices):
     vertices = get_mesh_verts(blender_mesh)
     tris = get_mesh_tris(blender_mesh, vertex_offset)
     mat_indices = get_material_indices(blender_mesh, material_indices)
+    normals = get_mesh_normals(blender_mesh, triangle_offset)
     mesh_struct = mesh(start_index=triangle_offset, end_index=(triangle_offset + len(tris)))
 
-    return mesh_struct, tris, vertices, mat_indices
+    return mesh_struct, tris, vertices, mat_indices, normals
 
 
 @ti.func
 def hit_triangle(v0, v1, v2, r, t_min, t_max):
-    hit = True
+    hit = False
+    rec = empty_hit_record()
+
     t = 0.0
     e1 = v1 - v0
     e2 = v2 - v0
-    s = r.orig - v0
-    s1 = r.dir.cross(e2)
-    s2 = s.cross(e1)
-    det = s1.dot(e1)
-    if abs(det) < 0.0001:
-        hit = False
-    else:
-        det_inv = 1.0 / det
-        t = s2.dot(e2) * det_inv
-        if t <= t_min or t > t_max:
-            hit = False
-        else:
-            b1 = s1.dot(s) * det_inv
-            b2 = s2.dot(r.dir) * det_inv
-            b3 = 1 - b1 - b2
-            if b1 < 0.0 or b1 > 1.0 or b2 < 0.0 or b2 > 1.0 or b3 < 0.0 or b3 > 1.0:
-                hit = False
-            else:
-                p = ray.at(r, t)
-                hit = True
-
-    return hit, t
+    h = r.dir.cross(e2)
+    a = e1.dot(h)
+    if a > 0.0001 or a < -0.0001:
+        f = 1.0 / a
+        s = r.orig - v0
+        u = f * s.dot(h)
+        if u <= 1.0 and u >= 0.0:
+            q = s.cross(e1)
+            v = f * r.dir.dot(q)
+            if v >= 0.0 and u + v <= 1.0:
+                t = f * e2.dot(q)
+                if t > t_min and t <= t_max:
+                    hit = True
+                    rec.p = ray.at(r, t)
+                    rec.t = t
+    return hit, rec
 
 
 @ti.data_oriented
@@ -79,6 +84,7 @@ class MeshCache:
         self.ti_tris = None
         self.ti_verts = None
         self.ti_mat_indices = None
+        self.ti_normals = None
 
         self.data = {}  # a dict of blender object: mesh_struct
 
@@ -90,17 +96,19 @@ class MeshCache:
             return
 
         material_indices = [materials.get_index(slot.material) for slot in obj.material_slots]
-        mesh_struct, mesh_tris, mesh_verts, mesh_mat_indices = export_mesh(obj, self.tri_count,
+        mesh_struct, mesh_tris, mesh_verts, mesh_mat_indices, normals = export_mesh(obj, self.tri_count,
                                                                            self.vert_count,
                                                                            material_indices)
         if len(self.data) == 0:
             self.tris = mesh_tris
             self.verts = mesh_verts
             self.mat_indices = mesh_mat_indices
+            self.normals = normals
         else:
             self.tris = np.concatenate([self.tris, mesh_tris])
             self.verts = np.concatenate([self.verts, mesh_verts])
             self.mat_indices = np.concatenate([self.mat_indices, mesh_mat_indices])
+            self.normals = np.concatenate([self.normals, normals])
 
         self.tri_count += mesh_tris.shape[0]
         self.vert_count += mesh_verts.shape[0]
@@ -111,6 +119,10 @@ class MeshCache:
         self.ti_tris = ti.field(dtype=ti.u32, shape=(self.tri_count, 3))
         self.ti_tris.from_numpy(self.tris)
         self.tris = None
+
+        self.ti_normals = Vector.field(shape=self.tri_count)
+        self.ti_normals.from_numpy(self.normals)
+        self.normals = None
 
         self.ti_verts = Point.field(shape=self.vert_count)
         self.ti_verts.from_numpy(self.verts)
@@ -134,21 +146,25 @@ class MeshCache:
 
         hit_anything = False
         material_id = 0
+        rec = empty_hit_record()
 
         i = m.start_index
         while i < m.end_index:
             v0_i, v1_i, v2_i = self.ti_tris[i, 0], self.ti_tris[i, 1], self.ti_tris[i, 2]
-            hit_tri, t = hit_triangle(self.ti_verts[v0_i],
-                                      self.ti_verts[v1_i],
-                                      self.ti_verts[v2_i], r, t_min, t_max)
+            hit_tri, temp_rec = hit_triangle(self.ti_verts[v0_i],
+                                             self.ti_verts[v1_i],
+                                             self.ti_verts[v2_i], r, t_min, t_max)
 
             if hit_tri:
                 hit_anything = True
                 material_id = self.ti_mat_indices[i]
-                t_max = t
+                rec = temp_rec
+                t_max = rec.t
+                set_face_normal(r, self.ti_normals[i], rec)
+
             i += 1
 
-        return hit_anything, t_max, material_id
+        return hit_anything, rec, material_id
 
     def get_mesh(self, obj, materials):
         if obj not in self.data:

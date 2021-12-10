@@ -33,17 +33,12 @@ class Scene:
         self.instances.commit()
 
     @ti.func
-    def hit(self, r, t_min, t_max, color):
-        hit, material_id = self.instances.hit(self.meshes, r, t_min, t_max)
-        if hit:
-            color = self.materials.ti_get(material_id)
-
-        return color
+    def hit(self, r, t_min, t_max):
+        return self.instances.hit(self.meshes, r, t_min, t_max)
 
     @ti.func
-    def trace_camera_ray(self, r, background):
-        return self.hit(r, 0.0, 99999999.0, background)
-
+    def get_color(self, material_id):
+        return self.materials.ti_get(material_id)
 
 '''    
     

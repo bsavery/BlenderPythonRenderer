@@ -1,4 +1,6 @@
 import taichi as ti
+
+from .hit_record import empty_hit_record
 from .vector import *
 import numpy as np
 from .ray import *
@@ -6,7 +8,7 @@ from .mesh import mesh
 from mathutils import Vector as b_vec
 
 # Object Instance Struct
-instance = ti.types.struct(box_min=Vector, box_max=Vector, matrix=Matrix4, mesh_ptr=mesh)
+instance = ti.types.struct(box_min=Vector, box_max=Vector, matrix=Matrix4, matrix_world=Matrix4, mesh_ptr=mesh)
 
 
 def export_instance(inst, mesh_ptr):
@@ -17,10 +19,11 @@ def export_instance(inst, mesh_ptr):
     world_bb_vertices = np.array([mat @ v for v in bb_vertices])
 
     matrix = [list(row) for row in mat.inverted()]
+    matrix_world = [list(row) for row in mat]
 
     return instance(box_min=list(world_bb_vertices.min(axis=0)),
                     box_max=list(world_bb_vertices.max(axis=0)),
-                    matrix=matrix, mesh_ptr=mesh_ptr)
+                    matrix=matrix, matrix_world=matrix_world, mesh_ptr=mesh_ptr)
 
 
 @ti.func
@@ -49,14 +52,19 @@ def hit_instance(inst, r, t_min, t_max):
 
 
 @ti.func
+def convert_space(mat, vec, is_point):
+    vec_new = mat @ Vector4(vec.x, vec.y, vec.z, 1.0 if is_point else 0.0)
+    return Vector(vec_new.x, vec_new.y, vec_new.z)
+
+
+@ti.func
 def convert_to_object_space(inst, r):
     # convert ray space to object
-    r_orig = inst.matrix @ Vector4(r.orig.x, r.orig.y, r.orig.z, 1.0)
-    orig = Vector(r_orig.x, r_orig.y, r_orig.z)
-    r_dir = inst.matrix @ Vector4(r.dir.x, r.dir.y, r.dir.z, 0.0)
-    dir = Vector(r_dir.x, r_dir.y, r_dir.z)
+    orig = convert_space(inst.matrix, r.orig, True)
+    dir = convert_space(inst.matrix, r.dir, False)
 
     return Ray(orig=orig, dir=dir.normalized(), time=r.time)
+
 
 @ti.func
 def convert_t(r_orig, r_dest, t):
@@ -91,6 +99,7 @@ class InstanceCache:
 
         hit_anything = False
         material_id = 0
+        rec = empty_hit_record()
 
         i = 0
         while i < self.num_instances:
@@ -101,12 +110,15 @@ class InstanceCache:
                 # convert ray and t to object space
                 r_object = convert_to_object_space(inst, r)
                 # now get the mesh hit
-                hit_mesh, t, mat_id = mesh_data.hit(inst.mesh_ptr, r_object, t_min, t_max)
+                hit_mesh, temp_rec, temp_material_id = mesh_data.hit(inst.mesh_ptr, r_object, t_min, t_max)
                 # if hit set to closest
                 if hit_mesh:
                     hit_anything = True
-                    t_max = t
-                    material_id = mat_id
+                    t_max = temp_rec.t
+                    rec = temp_rec
+                    rec.p = convert_space(inst.matrix_world, rec.p, True)
+                    rec.normal = convert_space(inst.matrix_world, rec.normal, False)
+                    material_id = temp_material_id
             i += 1
 
-        return hit_anything, material_id
+        return hit_anything, rec, material_id

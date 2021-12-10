@@ -11,11 +11,13 @@ class Render:
         ti.init(arch=ti.gpu)
         self.camera: Camera = None
         self.scene: Scene = None
+        self.integrator = Integrator()
 
     def sync_depsgraph(self, depsgraph):
         self.scene = Scene(depsgraph)
         self.camera = Camera(depsgraph.scene.camera, self.image_width, self.image_height)
         self.scene.commit()
+        self.integrator.set_scene(self.scene)
 
     def get_buffer(self):
         return self.pixel_buffer.to_numpy().swapaxes(0, 1).reshape(
@@ -27,7 +29,7 @@ class Render:
             s = (i + ti.random()) / (self.image_width - 1)
             t = (j + ti.random()) / (self.image_height - 1)
             ray = self.camera.get_ray(s, t)
-            self.pixel_buffer[i, j] += self.scene.trace_camera_ray(ray, Vector4(0.0))
+            self.pixel_buffer[i, j] += self.integrator.trace_ray(ray, Vector4(1.0), 8)
 
     @ti.kernel
     def finish(self, n: ti.i32):
