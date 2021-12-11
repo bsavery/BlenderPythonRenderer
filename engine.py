@@ -44,9 +44,9 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         scale = scene.render.resolution_percentage / 100.0
         self.size_x = int(scene.render.resolution_x * scale)
         self.size_y = int(scene.render.resolution_y * scale)
-        result = self.begin_result(0, 0, self.size_x, self.size_y)
+        #result = self.begin_result(0, 0, self.size_x, self.size_y)
 
-        layer = result.layers[0].passes["Combined"]
+        #layer = result.layers[0].passes["Combined"]
 
         num_samples = scene.bpr.samples
         t = time.time()
@@ -56,10 +56,10 @@ class CustomRenderEngine(bpy.types.RenderEngine):
                 break
             self.renderer.render_pass()
             n += 1
-            result = self.begin_result(0, 0, self.size_x, self.size_y)
-            layer = result.layers[0].passes["Combined"]
-            layer.rect = self.renderer.get_buffer() / n
-            self.end_result(result)
+            #result = self.begin_result(0, 0, self.size_x, self.size_y)
+            #layer = result.layers[0].passes["Combined"]
+            rect = self.renderer.get_buffer() / n
+            #self.end_result(result)
             self.update_progress(n / num_samples)
 
         self.renderer.finish(n)
