@@ -26,7 +26,15 @@ bl_info = {
 }
 
 
+def check_for_taichi():
+    import sys
+    if 'taichi' not in sys.modules:
+        import pip
+        pip.main(['install', 'taichi', '--user'])
+
+
 def register():
+    check_for_taichi()
     engine.register()
     properties.register()
     ui.register()
