@@ -16,11 +16,11 @@ def get_mesh_tris(blender_mesh, offset):
     return data.reshape((num_tris, 3)) + offset
 
 
-def get_mesh_normals(blender_mesh, offset):
-    num_normals = len(blender_mesh.loop_triangles)
-    data = np.zeros(num_normals * 3, dtype=np.uint32)
-    blender_mesh.loop_triangles.foreach_get('normal', data)
-    return data.reshape((num_normals, 3)) + offset
+def get_mesh_normals(blender_mesh):
+    num_normals = len(blender_mesh.vertices)
+    data = np.zeros(num_normals * 3, dtype=np.float32)
+    blender_mesh.vertices.foreach_get('normal', data)
+    return data.reshape((num_normals, 3))
 
 
 def get_mesh_verts(blender_mesh):
@@ -41,18 +41,19 @@ def get_material_indices(blender_mesh, material_indices):
 def export_mesh(blender_obj, triangle_offset, vertex_offset, material_indices):
     blender_mesh = blender_obj.data
     blender_mesh.calc_loop_triangles()
+    blender_mesh.calc_normals_split()
 
     vertices = get_mesh_verts(blender_mesh)
+    normals = get_mesh_normals(blender_mesh)
     tris = get_mesh_tris(blender_mesh, vertex_offset)
     mat_indices = get_material_indices(blender_mesh, material_indices)
-    normals = get_mesh_normals(blender_mesh, triangle_offset)
     mesh_struct = mesh(start_index=triangle_offset, end_index=(triangle_offset + len(tris)))
 
     return mesh_struct, tris, vertices, mat_indices, normals
 
 
 @ti.func
-def hit_triangle(v0, v1, v2, r, t_min, t_max):
+def hit_triangle(v0, v1, v2, n0, n1, n2, r, t_min, t_max):
     hit = False
     rec = empty_hit_record()
 
@@ -74,6 +75,9 @@ def hit_triangle(v0, v1, v2, r, t_min, t_max):
                     hit = True
                     rec.p = ray.at(r, t)
                     rec.t = t
+                    w = 1.0 - u - v
+                    rec.normal = w * n0 + u * n1 + v * n2
+                    rec.normal = rec.normal.normalized()
     return hit, rec
 
 
@@ -120,7 +124,7 @@ class MeshCache:
         self.ti_tris.from_numpy(self.tris)
         self.tris = None
 
-        self.ti_normals = Vector.field(shape=self.tri_count)
+        self.ti_normals = Vector.field(shape=self.vert_count)
         self.ti_normals.from_numpy(self.normals)
         self.normals = None
 
@@ -153,14 +157,17 @@ class MeshCache:
             v0_i, v1_i, v2_i = self.ti_tris[i, 0], self.ti_tris[i, 1], self.ti_tris[i, 2]
             hit_tri, temp_rec = hit_triangle(self.ti_verts[v0_i],
                                              self.ti_verts[v1_i],
-                                             self.ti_verts[v2_i], r, t_min, t_max)
+                                             self.ti_verts[v2_i],
+                                             self.ti_normals[v0_i],
+                                             self.ti_normals[v1_i],
+                                             self.ti_normals[v2_i], r, t_min, t_max)
 
             if hit_tri:
                 hit_anything = True
                 material_id = self.ti_mat_indices[i]
                 rec = temp_rec
                 t_max = rec.t
-                set_face_normal(r, self.ti_normals[i], rec)
+                set_face_normal(r, rec.normal, rec)
 
             i += 1
 
