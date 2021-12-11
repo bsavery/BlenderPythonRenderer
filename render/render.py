@@ -19,6 +19,9 @@ class Render:
         self.scene.commit()
         self.integrator.set_scene(self.scene)
 
+    def set_camera_from_matrix(self, cam_matrix, cam_angle):
+        self.camera = Camera(None, self.image_width, self.image_height, cam_matrix, cam_angle)
+
     def get_buffer(self):
         return self.pixel_buffer.to_numpy().swapaxes(0, 1).reshape(
             (self.image_height * self.image_width, 4))

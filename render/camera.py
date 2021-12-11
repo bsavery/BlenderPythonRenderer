@@ -7,16 +7,16 @@ import math
 @ti.data_oriented
 class Camera:
     ''' Camera class '''
-    def __init__(self, blender_cam, width, height):
+    def __init__(self, blender_cam, width, height, matrix=None, angle=None):
         aspect_ratio = width / height
         t0, t1 = 0.0, 1.0
         focus_dist = 10.0
         aperture = 0.0
 
-        theta = blender_cam.data.angle / aspect_ratio
+        theta = blender_cam.data.angle / aspect_ratio if angle is None else angle / aspect_ratio
         h = math.tan(theta/2.0)
 
-        cam_mat = blender_cam.matrix_world
+        cam_mat = blender_cam.matrix_world if matrix is None else matrix
         look_from = Vector(cam_mat[0][3], cam_mat[1][3], cam_mat[2][3])
         self.u = Vector(cam_mat[0][0], cam_mat[1][0], cam_mat[2][0])
         self.v = Vector(cam_mat[0][1], cam_mat[1][1], cam_mat[2][1])

@@ -30,8 +30,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         self.renderer = Render()
         scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0
-        self.renderer.set_resolution(int(scene.render.resolution_x * scale),
-                                     int(scene.render.resolution_y * scale))
+        self.resolution = (int(scene.render.resolution_x * scale), int(scene.render.resolution_y * scale))
+        self.renderer.set_resolution(self.resolution[0], self.resolution[1])
 
         self.renderer.sync_depsgraph(depsgraph)
         print("Total export", time.time() - t)
@@ -41,9 +41,6 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     def render(self, depsgraph):
         # render the number of samples
         scene = depsgraph.scene
-        scale = scene.render.resolution_percentage / 100.0
-        self.size_x = int(scene.render.resolution_x * scale)
-        self.size_y = int(scene.render.resolution_y * scale)
         #result = self.begin_result(0, 0, self.size_x, self.size_y)
 
         #layer = result.layers[0].passes["Combined"]
@@ -58,13 +55,13 @@ class CustomRenderEngine(bpy.types.RenderEngine):
             n += 1
             #result = self.begin_result(0, 0, self.size_x, self.size_y)
             #layer = result.layers[0].passes["Combined"]
-            rect = self.renderer.get_buffer() / n
+            self.rect = self.renderer.get_buffer() / n
             #self.end_result(result)
             self.update_progress(n / num_samples)
 
         self.renderer.finish(n)
 
-        result = self.begin_result(0, 0, self.size_x, self.size_y)
+        result = self.begin_result(0, 0, self.resolution[0], self.resolution[1])
         layer = result.layers[0].passes["Combined"]
         layer.rect = self.renderer.get_buffer()
         self.end_result(result)
@@ -78,36 +75,14 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # should be read from Blender in the same thread. Typically a render
     # thread will be started to do the work while keeping Blender responsive.
     def view_update(self, context, depsgraph):
-        region = context.region
-        view3d = context.space_data
-        scene = depsgraph.scene
-
-        # Get viewport dimensions
-        dimensions = region.width, region.height
-
-        if not self.scene_data:
-            # First time initialization
-            self.scene_data = []
-            first_time = True
-
-            # Loop over all datablocks used in the scene.
-            for datablock in depsgraph.ids:
-                pass
-        else:
-            first_time = False
-
-            # Test which datablocks changed
-            for update in depsgraph.updates:
-                print("Datablock updated: ", update.id.name)
-
-            # Test if any material was added, removed or changed.
-            if depsgraph.id_type_updated('MATERIAL'):
-                print("Materials updated")
-
-        # Loop over all object instances in the scene.
-        if first_time or depsgraph.id_type_updated('OBJECT'):
-            for instance in depsgraph.object_instances:
-                pass
+        self.update(depsgraph=depsgraph)
+        dimensions = context.region.width, context.region.height
+        self.resolution = dimensions
+        self.renderer.set_resolution(*dimensions)
+        # this angle needs to be fixed
+        self.cam_matrix = context.region_data.view_matrix.inverted()
+        self.renderer.set_camera_from_matrix(self.cam_matrix, 72.0)
+        self.rect = do_render(16, self.renderer)
 
     # For viewport renders, this method is called whenever Blender redraws
     # the 3D viewport. The renderer is expected to quickly draw the render
@@ -117,6 +92,9 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     def view_draw(self, context, depsgraph):
         region = context.region
         scene = depsgraph.scene
+
+        if context.region_data.view_matrix.inverted() != self.cam_matrix:
+            self.view_update(context, depsgraph)
 
         # Get viewport dimensions
         dimensions = region.width, region.height
@@ -128,6 +106,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
 
         if not self.draw_data or self.draw_data.dimensions != dimensions:
             self.draw_data = CustomDrawData(dimensions)
+        self.draw_data.set_texture(self.rect, self.resolution)
 
         self.draw_data.draw()
 
@@ -136,14 +115,14 @@ class CustomRenderEngine(bpy.types.RenderEngine):
 
 
 class CustomDrawData:
-    def __init__(self, dimensions):
+    def __init__(self, window_dimensions):
         # Generate dummy float image buffer
-        self.dimensions = dimensions
-        width, height = dimensions
+        self.dimensions = window_dimensions
+        width, height = window_dimensions
 
-        pixels = [0.1, 0.2, 0.1, 1.0] * width * height
+        pixels = [0.0, 0.0, 0.0, 0.0] * width * height
         pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
-
+        
         # Generate texture
         self.texture = bgl.Buffer(bgl.GL_INT, 1)
         bgl.glGenTextures(1, self.texture)
@@ -190,6 +169,21 @@ class CustomDrawData:
 
         bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, 0)
         bgl.glBindVertexArray(0)
+
+    def set_texture(self, pixels, dimensions):
+        # Generate texture
+        width, height = dimensions
+
+        pixels = pixels.flatten()
+        buffer = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels.flatten())
+
+        bgl.glActiveTexture(bgl.GL_TEXTURE0)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture[0])
+        bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA16F,
+                         width, height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
 
     def __del__(self):
         bgl.glDeleteBuffers(2, self.vertex_buffer)
@@ -239,3 +233,12 @@ def unregister():
     for panel in get_panels():
         if 'PYTHON' in panel.COMPAT_ENGINES:
             panel.COMPAT_ENGINES.remove('BPR')
+
+
+def do_render(num_samples, renderer):
+    n = 0
+    while n < num_samples:
+        renderer.render_pass()
+        n += 1
+    return renderer.get_buffer() / n
+        
