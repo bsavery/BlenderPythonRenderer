@@ -100,6 +100,8 @@ class MeshCache:
             return
 
         material_indices = [materials.get_index(slot.material) for slot in obj.material_slots]
+        if material_indices == []:
+            material_indices = [0]
         mesh_struct, mesh_tris, mesh_verts, mesh_mat_indices, normals = export_mesh(obj, self.tri_count,
                                                                            self.vert_count,
                                                                            material_indices)

@@ -15,8 +15,12 @@ class MaterialCache:
 
     def commit(self):
         ''' save the material data to a temp numpy array and then taichi data'''
-        self.ti_data = Vector4.field(shape=len(self.data))
-        self.ti_data.from_numpy(np.array([export_material(mat) for mat in self.data], dtype=np.float32))
+        # fix if there is no materials
+        data = np.array([export_material(mat) for mat in self.data], dtype=np.float32)
+        if len(self.data) == 0:
+            data = np.array([[1.0, 0.0, 1.0, 1.0]], dtype=np.float32)
+        self.ti_data = Vector4.field(shape=len(data))
+        self.ti_data.from_numpy(data)
 
     def get_index(self, blender_material):
         self.add(blender_material)
