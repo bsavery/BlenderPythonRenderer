@@ -8,17 +8,17 @@ from .mesh import mesh
 from numpy.linalg import inv
 
 # Object Instance Struct
-instance = ti.types.struct(box_min=Vector, box_max=Vector, world_to_obj=Matrix4, obj_to_world=Matrix4, mesh_ptr=mesh)
+instance = ti.types.struct(box_min=Vector, box_max=Vector,
+                           world_to_obj=Matrix4, obj_to_world=Matrix4,
+                           mesh_ptr=mesh)
 
 
 def export_instance(inst, mesh_ptr):
-    #print('intstance, ', inst.object, inst.parent, inst.is_instance)
     bound_box = np.array(inst.object.bound_box)
     mat = np.array(inst.matrix_world, dtype=np.float32).reshape(4, 4)
     bb_vertices = [np.array([v[0], v[1], v[2], 1.0]) for v in bound_box]
     world_bb_vertices = np.array([(mat @ v)[:3] for v in bb_vertices])
 
-    
     return instance(box_min=list(world_bb_vertices.min(axis=0)),
                     box_max=list(world_bb_vertices.max(axis=0)),
                     world_to_obj=list(inv(mat)), obj_to_world=list(mat), mesh_ptr=mesh_ptr)
@@ -74,7 +74,7 @@ def convert_t(r_orig, r_dest, t):
 class InstanceCache:
     def __init__(self):
         self.ti_data = None
-        self.data = []  # a dict of instances id: instance_struct  #TODO find a way to hash instances
+        self.data = []  # a dict of instances id: instance_struct TODO find a way to hash instances
 
     def add(self, inst, mesh_ptr):
         self.data.append(export_instance(inst, mesh_ptr))
@@ -112,7 +112,8 @@ class InstanceCache:
                 t_min_obj = t_from_p(r_object, p_min_obj)
                 t_max_obj = t_from_p(r_object, p_max_obj)
                 # now get the mesh hit
-                hit_mesh, temp_rec, temp_material_id = mesh_data.hit(inst.mesh_ptr, r_object, t_min_obj, t_max_obj)
+                hit_mesh, temp_rec, temp_material_id = mesh_data.hit(inst.mesh_ptr, r_object,
+                                                                     t_min_obj, t_max_obj)
                 # if hit set to closest
                 if hit_mesh:
                     hit_anything = True

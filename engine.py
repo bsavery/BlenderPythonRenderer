@@ -30,7 +30,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         self.renderer = Render()
         scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0
-        self.resolution = (int(scene.render.resolution_x * scale), int(scene.render.resolution_y * scale))
+        self.resolution = (int(scene.render.resolution_x * scale),
+                           int(scene.render.resolution_y * scale))
         self.renderer.set_resolution(self.resolution[0], self.resolution[1])
 
         self.renderer.sync_depsgraph(depsgraph)
@@ -41,9 +42,9 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     def render(self, depsgraph):
         # render the number of samples
         scene = depsgraph.scene
-        #result = self.begin_result(0, 0, self.size_x, self.size_y)
+        # result = self.begin_result(0, 0, self.size_x, self.size_y)
 
-        #layer = result.layers[0].passes["Combined"]
+        # layer = result.layers[0].passes["Combined"]
 
         num_samples = scene.bpr.samples
         t = time.time()
@@ -53,10 +54,10 @@ class CustomRenderEngine(bpy.types.RenderEngine):
                 break
             self.renderer.render_pass()
             n += 1
-            #result = self.begin_result(0, 0, self.size_x, self.size_y)
-            #layer = result.layers[0].passes["Combined"]
+            # result = self.begin_result(0, 0, self.size_x, self.size_y)
+            # layer = result.layers[0].passes["Combined"]
             self.rect = self.renderer.get_buffer() / n
-            #self.end_result(result)
+            # self.end_result(result)
             self.update_progress(n / num_samples)
 
         self.renderer.finish(n)
@@ -67,8 +68,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         self.end_result(result)
 
         print("Total render", time.time() - t)
-        #self.renderer.save()
-
+        # self.renderer.save()
 
     # For viewport renders, this method gets called once at the start and
     # whenever the scene or 3D viewport changes. This method is where data
@@ -122,7 +122,7 @@ class CustomDrawData:
 
         pixels = [0.0, 0.0, 0.0, 0.0] * width * height
         pixels = bgl.Buffer(bgl.GL_FLOAT, width * height * 4, pixels)
-        
+
         # Generate texture
         self.texture = bgl.Buffer(bgl.GL_INT, 1)
         bgl.glGenTextures(1, self.texture)
@@ -241,4 +241,3 @@ def do_render(num_samples, renderer):
         renderer.render_pass()
         n += 1
     return renderer.get_buffer() / n
-        
