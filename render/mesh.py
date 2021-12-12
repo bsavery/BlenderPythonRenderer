@@ -10,6 +10,7 @@ mesh = ti.types.struct(start_index=ti.u32, end_index=ti.u32)
 
 
 def get_mesh_tris(blender_mesh, offset):
+    ''' Returns numpy array of vertex indices, + offset'''
     num_tris = len(blender_mesh.loop_triangles)
     data = np.zeros(num_tris * 3, dtype=np.uint32)
     blender_mesh.loop_triangles.foreach_get('vertices', data)
@@ -17,6 +18,9 @@ def get_mesh_tris(blender_mesh, offset):
 
 
 def get_mesh_normals(blender_mesh, offset):
+    ''' Returns a numpy array of normals one for each face, with offset
+        TODO add per vertex normals?
+    '''
     num_normals = len(blender_mesh.loop_triangles)
     data = np.zeros(num_normals * 3, dtype=np.uint32)
     blender_mesh.loop_triangles.foreach_get('normal', data)
@@ -24,6 +28,9 @@ def get_mesh_normals(blender_mesh, offset):
 
 
 def get_mesh_verts(blender_mesh):
+    ''' Returns a numpy array of vertex positions
+        TODO maybe we could de-duplicate data
+    '''
     num_verts = len(blender_mesh.vertices)
     data = np.zeros(num_verts * 3, dtype=np.float32)
     blender_mesh.vertices.foreach_get('co', data)
@@ -31,6 +38,7 @@ def get_mesh_verts(blender_mesh):
 
 
 def get_material_indices(blender_mesh, material_indices):
+    ''' Gets a numpy array of face material indices '''
     num_indices = len(blender_mesh.loop_triangles)
     data = np.zeros(num_indices, dtype=np.uint32)
     blender_mesh.loop_triangles.foreach_get('material_index', data)
@@ -39,6 +47,7 @@ def get_material_indices(blender_mesh, material_indices):
 
 
 def export_mesh(blender_obj, triangle_offset, vertex_offset, material_indices):
+    ''' Gets numpy arrays of the mesh data '''
     blender_mesh = blender_obj.data
     blender_mesh.calc_loop_triangles()
 
@@ -53,6 +62,7 @@ def export_mesh(blender_obj, triangle_offset, vertex_offset, material_indices):
 
 @ti.func
 def hit_triangle(v0, v1, v2, r, t_min, t_max):
+    ''' Intersect a ray with a triangle '''
     hit = False
     rec = empty_hit_record()
 
@@ -79,12 +89,13 @@ def hit_triangle(v0, v1, v2, r, t_min, t_max):
 
 @ti.data_oriented
 class MeshCache:
+    ''' Caches all the mesh data and a list of structs describing meshes '''
     def __init__(self):
-        self.ti_data = None
-        self.ti_tris = None
-        self.ti_verts = None
-        self.ti_mat_indices = None
-        self.ti_normals = None
+        self.ti_data = None         # mesh data structs
+        self.ti_tris = None         # array of triangle vertex indices
+        self.ti_verts = None        # vertex positions
+        self.ti_mat_indices = None  # array of material index per face
+        self.ti_normals = None      # per face normal
 
         self.data = {}  # a dict of blender object: mesh_struct
 
@@ -92,16 +103,20 @@ class MeshCache:
         self.vert_count = 0
 
     def add(self, obj, materials):
+        ''' Add an object mesh to the cache '''
         if obj.name_full in self.data.keys():
             return
 
         material_indices = [materials.get_index(slot.material) for slot in obj.material_slots]
         if material_indices == []:
+            # if no materials assigned fix this
             material_indices = [0]
         mesh_struct, mesh_tris, mesh_verts, mesh_mat_indices, normals = export_mesh(obj,
                                                                                     self.tri_count,
                                                                                     self.vert_count,
                                                                                     material_indices)
+
+        # copy the exported mesh data to the arrays
         if len(self.data) == 0:
             self.tris = mesh_tris
             self.verts = mesh_verts
@@ -145,7 +160,7 @@ class MeshCache:
 
     @ti.func
     def hit(self, m, r, t_min, t_max):
-        # hit all tris in a mesh and return the mesh material that is hit
+        # hit all tris in a mesh and return the hit record and mesh material that is hit
 
         hit_anything = False
         material_id = 0

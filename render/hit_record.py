@@ -2,8 +2,9 @@ import taichi as ti
 from .vector import *
 
 
-# struct for hittable records
+# struct for recording ray hits
 HitRecord = ti.types.struct(p=Point, normal=Vector, t=ti.f32, front_face=ti.i32)
+
 
 @ti.func
 def empty_hit_record():

@@ -5,6 +5,9 @@ import numpy as np
 
 @ti.data_oriented
 class MaterialCache:
+    ''' The Material Cache exports blender objects to Taichi arrays of data
+        (Just colors for now)
+    '''
     def __init__(self):
         self.ti_data = None
         self.data = []  # a list of materials index = id
@@ -15,9 +18,9 @@ class MaterialCache:
 
     def commit(self):
         ''' save the material data to a temp numpy array and then taichi data'''
-        # fix if there is no materials
         data = np.array([export_material(mat) for mat in self.data], dtype=np.float32)
         if len(self.data) == 0:
+            # fix if there is no materials
             data = np.array([[1.0, 0.0, 1.0, 1.0]], dtype=np.float32)
         self.ti_data = Vector4.field(shape=len(data))
         self.ti_data.from_numpy(data)

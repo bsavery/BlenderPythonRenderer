@@ -1,14 +1,15 @@
 import taichi as ti
-from  .vector import *
+from .vector import *
 
 INFINITY = 99999999.9
 
+
 @ti.data_oriented
 class Integrator:
-
+    ''' Path tracing integrator, uses the scene to test against for ray hits.'''
     def set_scene(self, scene):
         self.scene = scene
-    
+
     @ti.func
     def trace_ray(self, r, background, max_depth):
         bounces = 1

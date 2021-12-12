@@ -8,6 +8,8 @@ import math
 class Camera:
     ''' Camera class '''
     def __init__(self, blender_cam, width, height, matrix=None, angle=None):
+        # create the camera vectors from the data
+        # note that we can override the camera matrix for viewport rendering
         aspect_ratio = width / height
         t0, t1 = 0.0, 1.0
         focus_dist = 10.0
@@ -37,7 +39,7 @@ class Camera:
 
     @ti.func
     def get_ray(self, s, t):
-        ''' Computes random sample based on st'''
+        ''' Computes random sample based on st of image space '''
         rd = ti.Vector([0.0, 0.0])
         offset = self.u * rd.x + self.v * rd.y
         return Ray(orig=(self.origin + offset),

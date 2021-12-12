@@ -1,5 +1,4 @@
 import taichi as ti
-
 from .hit_record import empty_hit_record
 from .vector import *
 import numpy as np
@@ -7,13 +6,16 @@ from .ray import *
 from .mesh import mesh
 from numpy.linalg import inv
 
-# Object Instance Struct
+# Taichi Object Instance Struct
+# holds a reference to the mesh contained
+# (no nested instances since blender flattens for render)
 instance = ti.types.struct(box_min=Vector, box_max=Vector,
                            world_to_obj=Matrix4, obj_to_world=Matrix4,
                            mesh_ptr=mesh)
 
 
 def export_instance(inst, mesh_ptr):
+    ''' Creates a Taichi Instance Struct from a blender depsgraph instance '''
     bound_box = np.array(inst.object.bound_box)
     mat = np.array(inst.matrix_world, dtype=np.float32).reshape(4, 4)
     bb_vertices = [np.array([v[0], v[1], v[2], 1.0]) for v in bound_box]
@@ -26,6 +28,7 @@ def export_instance(inst, mesh_ptr):
 
 @ti.func
 def hit_instance(inst, r, t_min, t_max):
+    ''' Returns if a ray hits a bounding box of an instance '''
     intersect = True
     min_aabb, max_aabb = inst.box_min, inst.box_max
     ray_direction, ray_origin = r.dir, r.orig
@@ -51,49 +54,43 @@ def hit_instance(inst, r, t_min, t_max):
 
 @ti.func
 def convert_space(mat, vec, is_point):
+    # convert a ray using a matrix
     vec_new = mat @ Vector4(vec.x, vec.y, vec.z, 1.0 if is_point else 0.0)
     return Vector(vec_new.x, vec_new.y, vec_new.z)
 
 
 @ti.func
 def convert_to_object_space(inst, r):
-    # convert ray space to object
+    # convert ray from world space to object
     orig = convert_space(inst.world_to_obj, r.orig, True)
     dir = convert_space(inst.world_to_obj, r.dir, False)
 
     return Ray(orig=orig, dir=dir.normalized(), time=r.time)
 
 
-@ti.func
-def convert_t(r_orig, r_dest, t):
-    P = at(r_orig, t)
-    return (P - r_dest.orig)[0] / r_dest.dir[0]
-
-
 @ti.data_oriented
 class InstanceCache:
+    ''' Instance cache keeps track of the instances exported and their data '''
     def __init__(self):
         self.ti_data = None
         self.data = []  # a dict of instances id: instance_struct TODO find a way to hash instances
 
     def add(self, inst, mesh_ptr):
+        # add a new instance to the cache
         self.data.append(export_instance(inst, mesh_ptr))
 
     def commit(self):
         ''' save the instance data to taichi data'''
         self.ti_data = instance.field(shape=len(self.data))
 
+        # TODO this loop is slow
         for i, inst in enumerate(self.data):
             self.ti_data[i] = inst
         self.num_instances = len(self.data)
 
     @ti.func
-    def ti_get(self, i):
-        return self.ti_data[i]
-
-    @ti.func
     def hit(self, mesh_data, r, t_min, t_max):
-        # hit all instances and return the mesh material that is hit
+        # test hit all instances and return the closest mesh that is hit
 
         hit_anything = False
         material_id = 0
@@ -102,7 +99,7 @@ class InstanceCache:
         i = 0
         while i < self.num_instances:
             # first check the instance bbox for hits
-            inst = self.ti_get(i)
+            inst = self.ti_data[i]
             hit_box = hit_instance(inst, r, t_min, t_max)
             if hit_box:
                 # convert ray and t to object space
@@ -114,7 +111,7 @@ class InstanceCache:
                 # now get the mesh hit
                 hit_mesh, temp_rec, temp_material_id = mesh_data.hit(inst.mesh_ptr, r_object,
                                                                      t_min_obj, t_max_obj)
-                # if hit set to closest
+                # if hit set to closest and convert back to world
                 if hit_mesh:
                     hit_anything = True
                     rec = temp_rec

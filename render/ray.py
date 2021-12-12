@@ -14,5 +14,5 @@ def at(r, t):
 
 @ti.func
 def t_from_p(r, P):
-    ''' returns the t from P '''
+    ''' returns the t from P and a ray '''
     return (P[0] - r.orig[0]) / r.dir[0]

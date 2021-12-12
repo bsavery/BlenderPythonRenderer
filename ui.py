@@ -1,6 +1,9 @@
 import bpy
 
 
+# UI Panels for displaying propertis of this addon
+
+
 class RENDER_PT_properties(bpy.types.Panel):
     bl_idname = "BPR_PT_Render_Properties"
     bl_label = "BPR Samples"
@@ -10,11 +13,10 @@ class RENDER_PT_properties(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
+        # only show this banel if BPR is selected
         return context.engine == 'BPR'
 
     def draw(self, context):
-        # You can set the property values that should be used when the user
-        # presses the button in the UI.
         bpr = context.scene.bpr
         self.layout.prop(bpr, 'samples')
 

@@ -12,6 +12,7 @@ Point = Vector
 
 @ti.func
 def random_in_hemi_sphere(normal):
+    ''' Returns a random vector around a hemisphere centered on a normal'''
     a = ti.random() * math.tau
     u = ti.Vector([ti.cos(a), ti.sin(a)])
     s = ti.random() * 2 - 1
