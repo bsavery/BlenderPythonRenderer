@@ -5,25 +5,23 @@ from .vector import *
 import numpy as np
 from .ray import *
 from .mesh import mesh
-from mathutils import Vector as b_vec
+from numpy.linalg import inv
 
 # Object Instance Struct
-instance = ti.types.struct(box_min=Vector, box_max=Vector, matrix=Matrix4, matrix_world=Matrix4, mesh_ptr=mesh)
+instance = ti.types.struct(box_min=Vector, box_max=Vector, world_to_obj=Matrix4, obj_to_world=Matrix4, mesh_ptr=mesh)
 
 
 def export_instance(inst, mesh_ptr):
-    
+    #print('intstance, ', inst.object, inst.parent, inst.is_instance)
     bound_box = np.array(inst.object.bound_box)
-    mat = inst.matrix_world if inst.is_instance else inst.object.matrix_world
-    bb_vertices = [b_vec(v) for v in bound_box]
-    world_bb_vertices = np.array([mat @ v for v in bb_vertices])
+    mat = np.array(inst.matrix_world, dtype=np.float32).reshape(4, 4)
+    bb_vertices = [np.array([v[0], v[1], v[2], 1.0]) for v in bound_box]
+    world_bb_vertices = np.array([(mat @ v)[:3] for v in bb_vertices])
 
-    matrix = [list(row) for row in mat.inverted()]
-    matrix_world = [list(row) for row in mat]
-
+    
     return instance(box_min=list(world_bb_vertices.min(axis=0)),
                     box_max=list(world_bb_vertices.max(axis=0)),
-                    matrix=matrix, matrix_world=matrix_world, mesh_ptr=mesh_ptr)
+                    world_to_obj=list(inv(mat)), obj_to_world=list(mat), mesh_ptr=mesh_ptr)
 
 
 @ti.func
@@ -60,8 +58,8 @@ def convert_space(mat, vec, is_point):
 @ti.func
 def convert_to_object_space(inst, r):
     # convert ray space to object
-    orig = convert_space(inst.matrix, r.orig, True)
-    dir = convert_space(inst.matrix, r.dir, False)
+    orig = convert_space(inst.world_to_obj, r.orig, True)
+    dir = convert_space(inst.world_to_obj, r.dir, False)
 
     return Ray(orig=orig, dir=dir.normalized(), time=r.time)
 
@@ -109,15 +107,19 @@ class InstanceCache:
             if hit_box:
                 # convert ray and t to object space
                 r_object = convert_to_object_space(inst, r)
+                p_min_obj = convert_space(inst.world_to_obj, at(r, t_min), True)
+                p_max_obj = convert_space(inst.world_to_obj, at(r, t_max), True)
+                t_min_obj = t_from_p(r_object, p_min_obj)
+                t_max_obj = t_from_p(r_object, p_max_obj)
                 # now get the mesh hit
-                hit_mesh, temp_rec, temp_material_id = mesh_data.hit(inst.mesh_ptr, r_object, t_min, t_max)
+                hit_mesh, temp_rec, temp_material_id = mesh_data.hit(inst.mesh_ptr, r_object, t_min_obj, t_max_obj)
                 # if hit set to closest
                 if hit_mesh:
                     hit_anything = True
-                    t_max = temp_rec.t
                     rec = temp_rec
-                    rec.p = convert_space(inst.matrix_world, rec.p, True)
-                    rec.normal = convert_space(inst.matrix_world, rec.normal, False)
+                    rec.p = convert_space(inst.obj_to_world, rec.p, True)
+                    rec.normal = convert_space(inst.obj_to_world, rec.normal, False).normalized()
+                    t_max = t_from_p(r, rec.p)
                     material_id = temp_material_id
             i += 1
 

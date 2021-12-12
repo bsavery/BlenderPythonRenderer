@@ -96,7 +96,7 @@ class MeshCache:
         self.vert_count = 0
 
     def add(self, obj, materials):
-        if obj in self.data:
+        if obj.name_full in self.data.keys():
             return
 
         material_indices = [materials.get_index(slot.material) for slot in obj.material_slots]
@@ -118,7 +118,7 @@ class MeshCache:
 
         self.tri_count += mesh_tris.shape[0]
         self.vert_count += mesh_verts.shape[0]
-        self.data[obj] = mesh_struct
+        self.data[obj.name_full] = mesh_struct
 
     def commit(self):
         # commit data to taichi fields and clear
@@ -176,6 +176,6 @@ class MeshCache:
         return hit_anything, rec, material_id
 
     def get_mesh(self, obj, materials):
-        if obj not in self.data:
+        if obj.name_full not in self.data.keys():
             self.add(obj, materials)
-        return self.data[obj]
+        return self.data[obj.name_full]
