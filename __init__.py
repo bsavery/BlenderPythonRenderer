@@ -18,8 +18,9 @@ bl_info = {
 
 def check_for_taichi():
     # look for taichi and install via PIP if needed
-    import sys
-    if 'taichi' not in sys.modules:
+    try:
+        import taichi
+    except:
         import pip
         pip.main(['install', 'taichi', '--user'])
 
