@@ -37,7 +37,7 @@ class Render:
             s = (i + ti.random()) / (self.image_width - 1)
             t = (j + ti.random()) / (self.image_height - 1)
             ray = self.camera.get_ray(s, t)
-            self.pixel_buffer[i, j] += self.integrator.trace_ray(ray, Vector4(1.0), 8)
+            self.pixel_buffer[i, j] += self.integrator.trace_ray(ray, Vector4(0.0), 128)
 
     @ti.kernel
     def finish(self, n: ti.i32):

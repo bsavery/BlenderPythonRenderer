@@ -1,5 +1,6 @@
 import taichi as ti
 from .vector import *
+from .ray import Ray
 
 INFINITY = 99999999.9
 
@@ -13,25 +14,29 @@ class Integrator:
     @ti.func
     def trace_ray(self, r, background, max_depth):
         bounces = 1
-        color = Vector4(0.0)
-
-        accumulated_color = Vector4(1.0)
+        color = Vector4(1.0)
         bounces = 1
 
         while bounces < max_depth:
             hit, rec, mat_id = self.scene.hit(r, 0.0001, INFINITY)
             if hit:
-                # increment accumulated color and set next ray orig, dir
-                accumulated_color *= self.scene.get_color(mat_id)
-                target = rec.p + random_in_hemi_sphere(rec.normal)
-                r.orig = rec.p
-                r.dir = target - rec.p
-                bounces += 1
-            elif bounces == 1.0:
-                color = Vector4(0.0)
+                emitted_color = self.scene.materials.get_emission(mat_id, r, rec)
+                is_scattered, scattered_ray, attenuation = self.scene.materials.get_scattering(mat_id, r, rec)
+
+                if is_scattered:
+                    color = emitted_color + color * attenuation
+                    r = scattered_ray
+                    bounces += 1
+                else:
+                    color *= emitted_color
+                    break
+            elif bounces == 1:
+                color = background
                 break
             else:
-                color = accumulated_color * background
+                # make sure alpha is 1 because we hit something
+                color *= background
+                color.w = 1.0
                 break
 
         return color
