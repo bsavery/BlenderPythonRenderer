@@ -1,6 +1,14 @@
 # Blender Python Renderer
 A GPU renderer for prototyping and research written *purely in python*
 
+![BMW scene render!](/examples/bmw.png "BMW Scene")
+BMW scene from Mike Pan (note missing geo on tires)
+
+## Installing
+Download the zip of this repo and install through Blender's plugin mechanism.  Taichi will be installed automatically the first time you load.  
+
+Alternatively, if you are a developer you probably want to manage this somewhere you edit your code and symlink the directory to your Blender's addon directory.  
+
 ## What
 This is an addon for a renderer to run as an add-on to Blender.  Blender has many renderers already, including the very good Cycles renderer built in, and (shameless self-promotion of other projects I'm involved in) [Radeon ProRender](https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderBlenderAddon).  If you are looking to render pictures for artwork, you should use one of those.
 
@@ -18,14 +26,19 @@ The biggest question here is executing python code on the GPU. All credit there 
 ## What now
 Currently the renderer will load and path trace scenes in Blender when you hit the render button (F12).  Basic Blender material settings and lights are supported.  My plan is to do plenty of [optimizations](https://github.com/bsavery/BlenderPythonRenderer/milestone/2) (there's not even a BVH yet), and then tackle the big issue of full node-based materials.
 
+Some known issues:  
+- Handles emissive lights and diffuse materials only
+- Some missing geometry (like in the BMW scene) and artifacts (like in the cornell box)
+![Cornell Box Render!](/examples/cornell_box.png "Cornell Box")
+- Errors caused when doing large bounce depths and resolutions
+
 ## Contributions
 Yes please! I would very much like this to be a thing that other developers contribute to, and use in their work.
 
 ## Code Layout
 Repo structure:
 - `__init__.py` Blender registration
-- `properties.py` Settings for the renderer.  Perhaps in future this could use the Cycles properties?
-- `ui.py` Panels for drawing the properties in Blender
+- `ui.py` Panels for drawing the renderer properties in Blender (note it currently just uses Cycles samples and ray bounces)
 - `engine.py` This is the class that Blender calls to execute the renderer, update the scene etc.  It passes data to everything in the `render/` directory
-- `render/*` The rendering and export code.  I tried to make it so the mesh export and rendering code is encapsulated in `mesh.py` for example. It might make sense to separate export and rendering code in the future.  
+- `render/*` The rendering and export code.  I tried to make it so the mesh export and mesh rendering code is encapsulated in `mesh.py` for example. It might make sense to separate export and rendering code in the future.  
 Each data type: Instance, Mesh, Material etc caches all the data to a big numpy list which is exported to Taichi for rendering on the GPU. 
