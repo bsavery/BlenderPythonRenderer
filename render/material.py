@@ -41,7 +41,7 @@ class MaterialCache:
         out_direction = random_in_hemi_sphere(rec.normal)
 
         attenuation = self.ti_color[mat_id]
-        do_scatter = self.ti_emission[mat_id].norm_sqr() <= 0.0000001
+        do_scatter = self.ti_emission[mat_id].w <= 0.0000001
 
         return do_scatter, Ray(orig=rec.p, dir=out_direction, time=r.time), attenuation
 
@@ -58,6 +58,8 @@ def get_color(material):
 
 
 def get_emission_color(material):
+    col = [0.0, 0.0, 0.0, 0.0]
+
     if material is not None:
         # only return the emission color for node graphs with emission nodes only.
         if material.node_tree is not None:
@@ -66,5 +68,5 @@ def get_emission_color(material):
                 if node.bl_idname == 'ShaderNodeOutputMaterial':
                     from_node = node.inputs['Surface'].links[0].from_node
                     if from_node.bl_idname == 'ShaderNodeEmission':
-                        return np.array(list(from_node.inputs['Color'].default_value), dtype=np.float32) * from_node.inputs['Strength'].default_value
-    return [0.0, 0.0, 0.0, 0.0]
+                        col = np.array(list(from_node.inputs['Color'].default_value), dtype=np.float32) * from_node.inputs['Strength'].default_value
+    return col
