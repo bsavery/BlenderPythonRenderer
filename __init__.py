@@ -1,5 +1,4 @@
 from . import engine
-from . import properties
 from . import ui
 
 
@@ -28,11 +27,9 @@ def check_for_taichi():
 def register():
     check_for_taichi()
     engine.register()
-    properties.register()
     ui.register()
 
 
 def unregister():
     engine.unregister()
     ui.unregister()
-    properties.unregister()

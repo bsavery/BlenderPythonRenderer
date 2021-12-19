@@ -46,13 +46,14 @@ class CustomRenderEngine(bpy.types.RenderEngine):
 
         # layer = result.layers[0].passes["Combined"]
 
-        num_samples = scene.bpr.samples
+        num_samples = scene.cycles.samples
+        max_bounces = scene.cycles.max_bounces
         t = time.time()
         n = 0
         while n < num_samples:
             if self.test_break():
                 break
-            self.renderer.render_pass()
+            self.renderer.render_pass(max_bounces)
             n += 1
             # result = self.begin_result(0, 0, self.size_x, self.size_y)
             # layer = result.layers[0].passes["Combined"]

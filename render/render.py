@@ -31,13 +31,13 @@ class Render:
             (self.image_height * self.image_width, 4))
 
     @ti.kernel
-    def render_pass(self):
+    def render_pass(self, bounces: ti.i32):
         # render a single sample on each pixel
         for i, j in self.pixel_buffer:
             s = (i + ti.random()) / (self.image_width - 1)
             t = (j + ti.random()) / (self.image_height - 1)
             ray = self.camera.get_ray(s, t)
-            self.pixel_buffer[i, j] += self.integrator.trace_ray(ray, Vector4(0.0), 128)
+            self.pixel_buffer[i, j] += self.integrator.trace_ray(ray, Vector4(0.0), bounces)
 
     @ti.kernel
     def finish(self, n: ti.i32):

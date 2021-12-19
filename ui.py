@@ -6,7 +6,7 @@ import bpy
 
 class RENDER_PT_properties(bpy.types.Panel):
     bl_idname = "BPR_PT_Render_Properties"
-    bl_label = "BPR Samples"
+    bl_label = "Samples"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = 'render'
@@ -17,8 +17,9 @@ class RENDER_PT_properties(bpy.types.Panel):
         return context.engine == 'BPR'
 
     def draw(self, context):
-        bpr = context.scene.bpr
-        self.layout.prop(bpr, 'samples')
+        cycles_settings = context.scene.cycles
+        self.layout.prop(cycles_settings, 'samples')
+        self.layout.prop(cycles_settings, 'max_bounces')
 
 
 def register():
