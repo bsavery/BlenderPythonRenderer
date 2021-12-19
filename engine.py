@@ -55,10 +55,10 @@ class CustomRenderEngine(bpy.types.RenderEngine):
                 break
             self.renderer.render_pass(max_bounces)
             n += 1
-            # result = self.begin_result(0, 0, self.size_x, self.size_y)
-            # layer = result.layers[0].passes["Combined"]
-            self.rect = self.renderer.get_buffer() / n
-            # self.end_result(result)
+            result = self.begin_result(0, 0, self.resolution[0], self.resolution[1])
+            layer = result.layers[0].passes["Combined"]
+            layer.rect = self.renderer.get_buffer() / n
+            self.end_result(result)
             self.update_progress(n / num_samples)
 
         self.renderer.finish(n)

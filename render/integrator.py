@@ -13,7 +13,6 @@ class Integrator:
 
     @ti.func
     def trace_ray(self, r, background, max_depth):
-        bounces = 1
         color = Vector4(1.0)
         bounces = 1
 
@@ -30,13 +29,14 @@ class Integrator:
                 else:
                     color *= emitted_color
                     break
-            elif bounces == 1:
-                color = background
-                break
             else:
-                # make sure alpha is 1 because we hit something
-                color *= background
-                color.w = 1.0
+                if bounces == 1:
+                    # missed the first bounce, so just background
+                    color = background
+                else:
+                    # make sure alpha is 1 because we hit something
+                    color *= background
+                    color.w = 1.0
                 break
 
         return color
