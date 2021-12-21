@@ -34,7 +34,8 @@ class Integrator:
                 pdf = self.scene.materials.pdf(mat_id, wi, normal)
 
                 throughput *= self.scene.materials.eval(mat_id, wi, wo, normal) / pdf
-
+                if throughput.x < 0.001 and throughput.y < 0.001 and throughput.z < 0.001:
+                    break
                 r = Ray(orig=rec.p, dir=wi, time=r.time)
                 bounces += 1
             else:
