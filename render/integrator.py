@@ -13,30 +13,35 @@ class Integrator:
 
     @ti.func
     def trace_ray(self, r, background, max_depth):
-        color = Vector4(1.0)
-        bounces = 1
+        result = Vector4(0.0)
+        throughput = Vector4(1.0)
+        bounces = 0
+        first_hit = False
 
-        while bounces < max_depth:
+        while bounces <= max_depth:
             hit, rec, mat_id = self.scene.hit(r, 0.0001, INFINITY)
             if hit:
+                if bounces == 0:
+                    first_hit = True
                 emitted_color = self.scene.materials.get_emission(mat_id, r, rec)
-                is_scattered, scattered_ray, attenuation = self.scene.materials.get_scattering(mat_id, r, rec)
-
-                if is_scattered:
-                    color = emitted_color + color * attenuation
-                    r = scattered_ray
-                    bounces += 1
-                else:
-                    color *= emitted_color
+                if emitted_color.w > 0.0:
+                    result += emitted_color * throughput
                     break
+
+                wo = - r.dir.normalized()
+                normal = rec.normal.normalized()
+                wi = self.scene.materials.sample(mat_id, wo, normal)
+                pdf = self.scene.materials.pdf(mat_id, wi, normal)
+
+                throughput *= self.scene.materials.eval(mat_id, wi, wo, normal) / pdf
+
+                r = Ray(orig=rec.p, dir=wi, time=r.time)
+                bounces += 1
             else:
-                if bounces == 1:
-                    # missed the first bounce, so just background
-                    color = background
-                else:
-                    # make sure alpha is 1 because we hit something
-                    color *= background
-                    color.w = 1.0
+                result += background * throughput
                 break
 
-        return color
+        if first_hit:
+            result.w = 1.0
+
+        return result

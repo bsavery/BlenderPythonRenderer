@@ -2,6 +2,10 @@ import taichi as ti
 from .vector import Vector4, random_in_hemi_sphere
 import numpy as np
 from .ray import Ray
+import math
+
+
+INV_PI = 1.0 / math.pi
 
 
 @ti.data_oriented
@@ -37,13 +41,19 @@ class MaterialCache:
         return self.data.index(blender_material)
 
     @ti.func
-    def get_scattering(self, mat_id, r, rec):
-        out_direction = random_in_hemi_sphere(rec.normal)
+    def eval(self, mat_id, wi, wo, normal):
+        return self.ti_color[mat_id] * INV_PI * normal.dot(wi.normalized())
 
-        attenuation = self.ti_color[mat_id]
-        do_scatter = self.ti_emission[mat_id].w <= 0.0000001
+    @ti.func
+    def sample(self, mat_id, wo, normal):
+        return random_in_hemi_sphere(normal)
 
-        return do_scatter, Ray(orig=rec.p, dir=out_direction, time=r.time), attenuation
+    @ti.func
+    def pdf(self, mat_id, wi, normal):
+        cosine = normal.dot(wi.normalized())
+        if cosine < 0.0:
+            cosine = 0
+        return cosine * INV_PI
 
     @ti.func
     def get_emission(self, mat_id, r, rec):
