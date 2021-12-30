@@ -19,7 +19,7 @@ class Integrator:
         first_hit = False
 
         while bounces <= max_depth:
-            hit, rec, mat_id = self.scene.hit(r, 0.0001, INFINITY)
+            hit, rec, mat_id = self.scene.hit(r, 0.001, INFINITY)
             if hit:
                 if bounces == 0:
                     first_hit = True
