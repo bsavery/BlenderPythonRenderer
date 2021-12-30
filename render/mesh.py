@@ -3,6 +3,7 @@ from .vector import *
 import numpy as np
 from . import ray
 from .hit_record import empty_hit_record, set_face_normal
+import sys
 
 # Mesh Struct
 # holds start, end index to list of triangles
@@ -71,7 +72,7 @@ def hit_triangle(v0, v1, v2, r, t_min, t_max):
     e2 = v2 - v0
     h = r.dir.cross(e2)
     a = e1.dot(h)
-    if a > 0.0001 or a < -0.0001:
+    if ti.abs(a) > sys.float_info.epsilon:
         f = 1.0 / a
         s = r.orig - v0
         u = f * s.dot(h)
