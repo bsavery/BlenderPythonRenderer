@@ -2,7 +2,8 @@
 A GPU renderer for prototyping and research written *purely in python*
 
 ![BMW scene render!](/examples/bmw.png "BMW Scene")
-BMW scene from Mike Pan (note missing geo on tires)
+
+BMW scene from Mike Pan
 
 ## Installing
 Download the zip of this repo and install through Blender's plugin mechanism.  Taichi will be installed automatically the first time you load.  
@@ -11,6 +12,8 @@ Alternatively, if you are a developer you probably want to manage this somewhere
 
 ## What
 This is an addon for a renderer to run as an add-on to Blender.  Blender has many renderers already, including the very good Cycles renderer built in, and (shameless self-promotion of other projects I'm involved in) [Radeon ProRender](https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderBlenderAddon).  If you are looking to render pictures for artwork, you should use one of those.
+
+![Cornell Box Render!](/examples/cornell_box.png "Cornell Box")
 
 ## Why
 It seems half the repos I see on github are someone's "Toy Renderer" project. Do we really need another one?
@@ -28,8 +31,6 @@ Currently the renderer will load and path trace scenes in Blender when you hit t
 
 Some known issues:  
 - Handles emissive lights and diffuse materials only
-- Some missing geometry (like in the BMW scene) and artifacts (like in the cornell box)
-![Cornell Box Render!](/examples/cornell_box.png "Cornell Box")
 - Errors caused when doing large bounce depths and resolutions
 
 ## Contributions
