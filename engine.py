@@ -50,14 +50,15 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         max_bounces = scene.cycles.max_bounces
         t = time.time()
         n = 0
+        z_rect = np.ones(self.resolution, dtype=np.float32).flatten()
+
         while n < num_samples:
             if self.test_break():
                 break
             self.renderer.render_pass(max_bounces)
             n += 1
             result = self.begin_result(0, 0, self.resolution[0], self.resolution[1])
-            layer = result.layers[0].passes["Combined"]
-            layer.rect = self.renderer.get_buffer() / n
+            result.layers[0].passes.foreach_set('rect', np.concatenate([(self.renderer.get_buffer() / n).flatten(), z_rect]))
             self.end_result(result)
             self.update_progress(n / num_samples)
 
@@ -65,7 +66,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
 
         result = self.begin_result(0, 0, self.resolution[0], self.resolution[1])
         layer = result.layers[0].passes["Combined"]
-        layer.rect = self.renderer.get_buffer()
+        result.layers[0].passes.foreach_set('rect', np.concatenate([(self.renderer.get_buffer()).flatten(), z_rect]))
         self.end_result(result)
 
         print("Total render", time.time() - t)
