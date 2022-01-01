@@ -50,7 +50,15 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         max_bounces = scene.cycles.max_bounces
         t = time.time()
         n = 0
-        z_rect = np.ones(self.resolution, dtype=np.float32).flatten()
+
+        # gather extra passes TODO handle other AOVs other than just RGBA
+        aux_passes = []
+        result = self.begin_result(0, 0, self.resolution[0], self.resolution[1])
+        for _pass in result.layers[0].passes:
+            if _pass.name != 'Combined':
+                aux_passes.append(np.ones((self.resolution[0], self.resolution[1], _pass.channels),
+                                          dtype=np.float32).flatten())
+        self.end_result(result)
 
         while n < num_samples:
             if self.test_break():
@@ -58,15 +66,14 @@ class CustomRenderEngine(bpy.types.RenderEngine):
             self.renderer.render_pass(max_bounces)
             n += 1
             result = self.begin_result(0, 0, self.resolution[0], self.resolution[1])
-            result.layers[0].passes.foreach_set('rect', np.concatenate([(self.renderer.get_buffer() / n).flatten(), z_rect]))
+            result.layers[0].passes.foreach_set('rect', np.concatenate([(self.renderer.get_buffer() / n).flatten()] + aux_passes))
             self.end_result(result)
             self.update_progress(n / num_samples)
 
         self.renderer.finish(n)
 
         result = self.begin_result(0, 0, self.resolution[0], self.resolution[1])
-        layer = result.layers[0].passes["Combined"]
-        result.layers[0].passes.foreach_set('rect', np.concatenate([(self.renderer.get_buffer()).flatten(), z_rect]))
+        result.layers[0].passes.foreach_set('rect', np.concatenate([self.renderer.get_buffer().flatten()] + aux_passes))
         self.end_result(result)
 
         print("Total render", time.time() - t)
