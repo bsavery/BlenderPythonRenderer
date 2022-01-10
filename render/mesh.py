@@ -55,10 +55,10 @@ def export_mesh(blender_obj, triangle_offset, vertex_offset, material_indices):
     vertices = get_mesh_verts(blender_mesh)
     tris = get_mesh_tris(blender_mesh, vertex_offset)
     mat_indices = get_material_indices(blender_mesh, material_indices)
-    normals = get_mesh_normals(blender_mesh, triangle_offset)
+    # normals = get_mesh_normals(blender_mesh, triangle_offset)
     mesh_struct = mesh(start_index=triangle_offset, end_index=(triangle_offset + len(tris)))
 
-    return mesh_struct, tris, vertices, mat_indices, normals
+    return mesh_struct, tris, vertices, mat_indices #, normals
 
 
 @ti.func
@@ -85,6 +85,7 @@ def hit_triangle(v0, v1, v2, r, t_min, t_max):
                     hit = True
                     rec.p = ray.at(r, t)
                     rec.t = t
+                    rec.normal = e1.cross(e2)
     return hit, rec
 
 
@@ -112,22 +113,22 @@ class MeshCache:
         if material_indices == []:
             # if no materials assigned fix this
             material_indices = [0]
-        mesh_struct, mesh_tris, mesh_verts, mesh_mat_indices, normals = export_mesh(obj,
-                                                                                    self.tri_count,
-                                                                                    self.vert_count,
-                                                                                    material_indices)
+        mesh_struct, mesh_tris, mesh_verts, mesh_mat_indices = export_mesh(obj,
+                                                                           self.tri_count,
+                                                                           self.vert_count,
+                                                                           material_indices)
 
         # copy the exported mesh data to the arrays
         if len(self.data) == 0:
             self.tris = mesh_tris
             self.verts = mesh_verts
             self.mat_indices = mesh_mat_indices
-            self.normals = normals
+            # self.normals = normals
         else:
             self.tris = np.concatenate([self.tris, mesh_tris])
             self.verts = np.concatenate([self.verts, mesh_verts])
             self.mat_indices = np.concatenate([self.mat_indices, mesh_mat_indices])
-            self.normals = np.concatenate([self.normals, normals])
+            # self.normals = np.concatenate([self.normals, normals])
 
         self.tri_count += mesh_tris.shape[0]
         self.vert_count += mesh_verts.shape[0]
@@ -139,9 +140,9 @@ class MeshCache:
         self.ti_tris.from_numpy(self.tris)
         self.tris = None
 
-        self.ti_normals = Vector.field(shape=self.tri_count)
-        self.ti_normals.from_numpy(self.normals)
-        self.normals = None
+        # self.ti_normals = Vector.field(shape=self.tri_count)
+        # self.ti_normals.from_numpy(self.normals)
+        # self.normals = None
 
         self.ti_verts = Point.field(shape=self.vert_count)
         self.ti_verts.from_numpy(self.verts)
@@ -179,7 +180,7 @@ class MeshCache:
                 material_id = self.ti_mat_indices[i]
                 rec = temp_rec
                 t_max = rec.t
-                set_face_normal(r, self.ti_normals[i], rec)
+                set_face_normal(r, rec.normal, rec)
 
             i += 1
 
