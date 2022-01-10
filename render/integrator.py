@@ -12,37 +12,28 @@ class Integrator:
         self.scene = scene
 
     @ti.func
-    def trace_ray(self, r, background, max_depth):
-        result = Vector4(0.0)
-        throughput = Vector4(1.0)
-        bounces = 0
-        first_hit = False
+    def trace_ray(self, r, throughput, background):
+        ray_stop = False
 
-        while bounces <= max_depth:
-            hit, rec, mat_id = self.scene.hit(r, 0.001, INFINITY)
-            if hit:
-                if bounces == 0:
-                    first_hit = True
-                emitted_color = self.scene.materials.get_emission(mat_id, r, rec)
-                if emitted_color.w > 0.0:
-                    result += emitted_color * throughput
-                    break
-
+        hit, rec, mat_id = self.scene.hit(r, 0.001, INFINITY)
+        if hit:
+            emitted_color = self.scene.materials.get_emission(mat_id, r, rec) * throughput
+            if emitted_color.w > 0.0:
+                throughput *= emitted_color
+                ray_stop = True
+            else:
                 wo = - r.dir.normalized()
                 normal = rec.normal.normalized()
                 wi = self.scene.materials.sample(mat_id, wo, normal)
                 pdf = self.scene.materials.pdf(mat_id, wi, normal)
 
                 throughput *= self.scene.materials.eval(mat_id, wi, wo, normal) / pdf
-                if throughput.x < 0.001 and throughput.y < 0.001 and throughput.z < 0.001:
-                    break
+                # stop if throughput is small
+                if throughput.x < 0.0001 and throughput.y < 0.0001 and throughput.z < 0.0001:
+                    ray_stop = True
                 r = Ray(orig=rec.p, dir=wi, time=r.time)
-                bounces += 1
-            else:
-                result += background * throughput
-                break
+        else:
+            throughput *= background
+            ray_stop = True
 
-        if first_hit:
-            result.w = 1.0
-
-        return result
+        return r, throughput, ray_stop

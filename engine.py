@@ -49,7 +49,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         num_samples = scene.cycles.samples
         max_bounces = scene.cycles.max_bounces
         t = time.time()
-        n = 0
+        self.renderer.setup_render(num_samples, max_bounces)
 
         # gather extra passes TODO handle other AOVs other than just RGBA
         aux_passes = []
@@ -60,20 +60,28 @@ class CustomRenderEngine(bpy.types.RenderEngine):
                                           dtype=np.float32).flatten())
         self.end_result(result)
 
-        while n < num_samples:
+        samples_to_do = num_samples * self.resolution[0] * self.resolution[1]
+        completed_samples = 0
+        iterations = 0
+        last_update = time.time()
+
+        while completed_samples < samples_to_do:
             if self.test_break():
                 break
-            self.renderer.render_pass(max_bounces)
-            n += 1
-            result = self.begin_result(0, 0, self.resolution[0], self.resolution[1])
-            result.layers[0].passes.foreach_set('rect', np.concatenate([(self.renderer.get_buffer() / n).flatten()] + aux_passes))
-            self.end_result(result)
-            self.update_progress(n / num_samples)
+            samples_done = self.renderer.render_pass()
+            completed_samples += samples_done
+            self.update_progress(completed_samples / samples_to_do)
+            iterations += 1
 
-        self.renderer.finish(n)
+            # only update if more iterations are done than max_bounces
+            if time.time() - last_update > 1 and iterations > max_bounces:
+                result = self.begin_result(0, 0, self.resolution[0], self.resolution[1])
+                result.layers[0].passes.foreach_set('rect', np.concatenate([(self.renderer.get_buffer()).flatten()] + aux_passes))
+                self.end_result(result)
+                last_update = time.time()
 
         result = self.begin_result(0, 0, self.resolution[0], self.resolution[1])
-        result.layers[0].passes.foreach_set('rect', np.concatenate([self.renderer.get_buffer().flatten()] + aux_passes))
+        result.layers[0].passes.foreach_set('rect', np.concatenate([(self.renderer.get_buffer()).flatten()] + aux_passes))
         self.end_result(result)
 
         print("Total render", time.time() - t)
