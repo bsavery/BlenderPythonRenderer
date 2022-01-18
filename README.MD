@@ -41,5 +41,5 @@ Repo structure:
 - `__init__.py` Blender registration
 - `ui.py` Panels for drawing the renderer properties in Blender (note it currently just uses Cycles samples and ray bounces)
 - `engine.py` This is the class that Blender calls to execute the renderer, update the scene etc.  It passes data to everything in the `render/` directory
-- `render/*` The rendering and export code.  I tried to make it so the mesh export and mesh rendering code is encapsulated in `mesh.py` for example. It might make sense to separate export and rendering code in the future.  
-Each data type: Instance, Mesh, Material etc caches all the data to a big numpy list which is exported to Taichi for rendering on the GPU. 
+- `export/*` The export code.  Blender data is exported to numpy arrays. 
+- `render/*` The rendering code.  Numpy arrays from `export` are passed to here and moved to taichi arrays and used for rendering on the GPU.

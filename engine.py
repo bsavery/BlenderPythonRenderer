@@ -1,6 +1,7 @@
 import bpy
 import bgl
-from .render.render import Render
+from .render.render import *
+from .export.scene import Scene
 import numpy as np
 import time
 
@@ -18,7 +19,6 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     def __init__(self):
         self.scene_data = None
         self.draw_data = None
-        self.renderer: Render = None
 
     # When the render engine instance is destroy, this is called. Clean up any
     # render engine data here, for example stopping running render threads.
@@ -27,29 +27,23 @@ class CustomRenderEngine(bpy.types.RenderEngine):
 
     def update(self, data=None, depsgraph=None):
         t = time.time()
-        self.renderer = Render()
         scene = depsgraph.scene
         scale = scene.render.resolution_percentage / 100.0
         self.resolution = (int(scene.render.resolution_x * scale),
                            int(scene.render.resolution_y * scale))
-        self.renderer.set_resolution(self.resolution[0], self.resolution[1])
+        self.num_samples = scene.cycles.samples
+        self.max_bounces = scene.cycles.max_bounces
 
-        self.renderer.sync_depsgraph(depsgraph)
+        exporter = Scene(depsgraph, self.resolution)
+        
+
+        setup_render(exporter, self.resolution[0], self.resolution[1], self.num_samples, self.max_bounces)
         print("Total export", time.time() - t)
 
     # This is the method called by Blender for both final renders (F12) and
     # small preview for materials, world and lights.
     def render(self, depsgraph):
-        # render the number of samples
-        scene = depsgraph.scene
-        # result = self.begin_result(0, 0, self.size_x, self.size_y)
-
-        # layer = result.layers[0].passes["Combined"]
-
-        num_samples = scene.cycles.samples
-        max_bounces = scene.cycles.max_bounces
         t = time.time()
-        self.renderer.setup_render(num_samples, max_bounces)
 
         # gather extra passes TODO handle other AOVs other than just RGBA
         aux_passes = []
@@ -60,7 +54,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
                                           dtype=np.float32).flatten())
         self.end_result(result)
 
-        samples_to_do = num_samples * self.resolution[0] * self.resolution[1]
+        samples_to_do = self.num_samples * self.resolution[0] * self.resolution[1]
         completed_samples = 0
         iterations = 0
         last_update = time.time()
@@ -68,20 +62,20 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         while completed_samples < samples_to_do:
             if self.test_break():
                 break
-            samples_done = self.renderer.render_pass()
+            samples_done = render_pass()
             completed_samples += samples_done
             self.update_progress(completed_samples / samples_to_do)
             iterations += 1
 
             # only update if more iterations are done than max_bounces
-            if time.time() - last_update > 1 and iterations > max_bounces:
+            if time.time() - last_update > 1 and iterations > self.max_bounces:
                 result = self.begin_result(0, 0, self.resolution[0], self.resolution[1])
-                result.layers[0].passes.foreach_set('rect', np.concatenate([(self.renderer.get_buffer()).flatten()] + aux_passes))
+                result.layers[0].passes.foreach_set('rect', np.concatenate([get_buffer().flatten()] + aux_passes))
                 self.end_result(result)
                 last_update = time.time()
 
         result = self.begin_result(0, 0, self.resolution[0], self.resolution[1])
-        result.layers[0].passes.foreach_set('rect', np.concatenate([(self.renderer.get_buffer()).flatten()] + aux_passes))
+        result.layers[0].passes.foreach_set('rect', np.concatenate([get_buffer().flatten()] + aux_passes))
         self.end_result(result)
 
         print("Total render", time.time() - t)
