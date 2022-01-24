@@ -97,10 +97,6 @@ class MeshCache:
         self.data[obj.name_full] = self.mesh_count
         self.mesh_count += 1
 
-    def commit(self):
-        # all data is already in numpy arrays
-        pass
-
     def get_mesh(self, obj, materials):
         if obj.name_full not in self.data.keys():
             self.add(obj, materials)

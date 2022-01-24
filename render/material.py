@@ -6,9 +6,6 @@ import math
 
 INV_PI = 1.0 / math.pi
 
-# material data fields
-color_data = Vector4.field()
-emission_data = Vector4.field()
 
 # Taichi data node
 DATA = None
@@ -17,8 +14,11 @@ DATA = None
 def setup_data(exported_materials):
     ''' Creates taichi data fields from numpy arrays exported from Blender '''
     # setup the data fields
-    global DATA
+    global DATA, color_data, emission_data
     DATA = ti.root.dense(ti.i, len(exported_materials.materials))
+    # material data fields
+    color_data = Vector4.field()
+    emission_data = Vector4.field()
     DATA.place(color_data, emission_data)
 
     color_data.from_numpy(exported_materials.color)

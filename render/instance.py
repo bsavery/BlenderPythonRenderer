@@ -13,20 +13,16 @@ instance = ti.types.struct(box_min=Vector, box_max=Vector,
                            mesh_id=ti.u8)
 
 
-instance_data = instance.field()
 NUM_INSTANCES = 0
-# Taichi data node
-DATA = None
 
 
 def setup_data(exported_instances):
     ''' Creates taichi data fields from numpy arrays exported from Blender '''
     # setup the pixel buffer and inflight rays
-    global DATA, NUM_INSTANCES
+    global NUM_INSTANCES, instance_data
     NUM_INSTANCES = exported_instances.instance_count
-    DATA = ti.root.dense(ti.i, exported_instances.instance_count)
-    DATA.place(instance_data)
-
+    instance_data = instance.field(shape=NUM_INSTANCES)
+    
     instance_data.box_min.from_numpy(exported_instances.box_min)
     instance_data.box_max.from_numpy(exported_instances.box_max)
     instance_data.world_to_obj.from_numpy(exported_instances.world_to_obj)
@@ -35,8 +31,8 @@ def setup_data(exported_instances):
 
 
 def clear_data():
-    global DATA
-    DATA = None
+    global instance_data
+    instance_data = None
 
 
 @ti.func

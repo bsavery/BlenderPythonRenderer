@@ -9,13 +9,6 @@ import sys
 mesh = ti.types.struct(start_index=ti.u32, end_index=ti.u32)
 
 
-# mesh data fields
-tris = ti.field(dtype=ti.u32)
-verts = Point.field()
-mat_indices = ti.field(dtype=ti.u8)
-meshes = mesh.field()
-
-
 def setup_data(exported_meshes):
     ''' Creates taichi data fields from numpy arrays exported from Blender '''
     # setup the pixel buffer and inflight rays

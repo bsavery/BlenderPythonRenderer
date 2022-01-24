@@ -38,11 +38,3 @@ class InstanceCache:
             self.mesh_id = np.concatenate([self.mesh_id, np.array([mesh_id], dtype=np.uint8)])
 
         self.instance_count += 1
-
-    def commit(self):
-        ''' save the instance data to taichi data'''
-        self.box_min = np.array(self.box_min, dtype=np.float32)
-        self.box_max = np.array(self.box_max, dtype=np.float32)
-        self.world_to_obj = np.array(self.world_to_obj, dtype=np.float32)
-        self.obj_to_world = np.array(self.world_to_obj, dtype=np.float32)
-        self.mesh_id = np.array(self.mesh_id, dtype=np.uint8)

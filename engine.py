@@ -35,7 +35,6 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         self.max_bounces = scene.cycles.max_bounces
 
         exporter = Scene(depsgraph, self.resolution)
-        
 
         setup_render(exporter, self.resolution[0], self.resolution[1], self.num_samples, self.max_bounces)
         print("Total export", time.time() - t)

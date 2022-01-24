@@ -6,17 +6,10 @@ from . import mesh
 from . import material
 from .vector import *
 from .ray import Ray
+import numpy as np
 
 
 InFlightRay = ti.types.struct(depth=ti.i32, ray=Ray, throughput=Vector4)
-
-
-# framebuffer RGBA
-pixel_buffer = ti.Vector.field(n=4, dtype=ti.f32)
-# sample counts for each pixel
-sample_count = ti.field(dtype=ti.i32)
-# rays in flight
-rays_in_flight = InFlightRay.field()
 
 
 # Taichi data node
@@ -32,6 +25,7 @@ _inited = False
 
 
 def setup_render(exported_scene, width, height, samples, max_depth):
+    print('call setup')
     global _inited
     if not _inited:
         ti.init(arch=ti.gpu)
@@ -44,10 +38,24 @@ def setup_render(exported_scene, width, height, samples, max_depth):
     instance.setup_data(exported_scene.instances)
 
     # setup the pixel buffer and inflight rays
-    global DATA
-    DATA = ti.root.dense(ti.ij, (width, height))
-    DATA.place(pixel_buffer, sample_count, rays_in_flight)
+    global DATA, pixel_buffer, sample_count, rays_in_flight
+    
+    if DATA is None:
+        # framebuffer RGBA
+        pixel_buffer = ti.Vector.field(n=4, dtype=ti.f32)
+        # sample counts for each pixel
+        sample_count = ti.field(dtype=ti.i32)
+        # rays in flight
+        rays_in_flight = InFlightRay.field()
 
+        DATA = ti.root.dense(ti.ij, (width, height))
+        DATA.place(pixel_buffer, sample_count, rays_in_flight)
+
+    pixel_buffer.from_numpy(np.zeros((width, height, 4), dtype=np.float32))
+    sample_count.from_numpy(np.zeros((width, height), dtype=np.int32))
+    rays_in_flight.depth.from_numpy(np.zeros((width, height), dtype=np.int32))
+
+    # constants
     global NUM_SAMPLES, MAX_DEPTH, WIDTH, HEIGHT
     NUM_SAMPLES = samples
     MAX_DEPTH = max_depth
